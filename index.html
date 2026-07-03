@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BELLE HOUSE 点呼システム Ver.3.1</title>
+<title>BELLE HOUSE 点呼システム Ver.4.0</title>
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#071f3d">
@@ -11,8 +11,13 @@
 </head>
 <body>
 <header class="app-header">
-  <div class="brand"><img src="icon-192.png" class="brand-icon"><div><h1>BELLE HOUSE 点呼システム</h1><p>Ver.3.1 / GPS・PDF・管理強化版</p></div></div>
+  <div class="brand">
+    <img src="icon-192.png" class="brand-icon">
+    <div><h1>BELLE HOUSE 点呼システム</h1><p>Ver.4.0 / Firebaseクラウド同期対応版</p></div>
+  </div>
+  <span id="syncStatus" class="sync-badge">ローカル保存</span>
 </header>
+
 <main class="container">
 <section id="loginView" class="card">
   <h2>ログイン</h2>
@@ -22,7 +27,7 @@
   </div>
   <label>パスワード</label><input id="loginPassword" type="password" placeholder="管理者は 1234 / ドライバーは任意">
   <button id="loginBtn">ログイン</button>
-  <p class="muted">管理者：<b>admin / 1234</b></p>
+  <p class="muted">管理者：<b>admin / 1234</b>　※Firebase設定後はスマホ→PC同期できます。</p>
 </section>
 
 <section id="driverView" class="hidden">
@@ -59,6 +64,8 @@
     <button data-tab="dashboard">ダッシュボード</button>
     <button data-tab="records">点呼履歴</button>
     <button data-tab="drivers">ドライバー登録</button>
+    <button data-tab="admins">管理者追加</button>
+    <button id="notifyBtn" class="ok">点呼忘れ通知ON</button>
     <button id="exportCsvBtn" class="ok">CSV出力</button>
     <button id="printPdfBtn" class="ok">PDF/印刷</button>
     <button id="backupBtn">バックアップ保存</button>
@@ -78,6 +85,8 @@
     <div><span id="statMonth">0</span><p>今月の点呼</p></div>
   </div>
   <h3>本日未点呼の登録ドライバー</h3><div id="missingToday" class="notice"></div>
+  <h3>統計グラフ</h3>
+  <div class="chart-card"><canvas id="summaryChart" width="600" height="260"></canvas></div>
 </div>
 
 <div id="recordsTab" class="card admin-tab hidden">
@@ -102,9 +111,22 @@
   <button id="addDriverBtn">登録</button>
   <div class="table-wrap"><table><thead><tr><th>名前</th><th>電話</th><th>免許期限</th><th>車両</th><th>備考</th><th>登録日</th><th>操作</th></tr></thead><tbody id="driversBody"></tbody></table></div>
 </div>
+
+<div id="adminsTab" class="card admin-tab hidden">
+  <h2>複数管理者</h2>
+  <div class="grid two">
+    <div><label>管理者ID</label><input id="newAdminId" placeholder="例：manager"></div>
+    <div><label>パスワード</label><input id="newAdminPass" placeholder="例：5678"></div>
+  </div>
+  <button id="addAdminBtn">管理者追加</button>
+  <p class="muted">初期管理者 admin / 1234 は削除できません。</p>
+  <div class="table-wrap"><table><thead><tr><th>ID</th><th>登録日</th><th>操作</th></tr></thead><tbody id="adminsBody"></tbody></table></div>
+</div>
 </section>
 </main>
-<footer>BELLE HOUSE 点呼システム Ver.3.1</footer>
+<footer>BELLE HOUSE 点呼システム Ver.4.0</footer>
+<script src="firebase-config.js"></script>
+<script type="module" src="firebase-sync.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

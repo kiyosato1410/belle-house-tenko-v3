@@ -1,5 +1,5 @@
-# BELLE HOUSE 点呼システム Ver.3.1
+# BELLE HOUSE 点呼システム Ver.4.0
 
 管理者ログイン: admin / 1234
 
-GPS、管理画面強化、PDF印刷、バックアップ保存・読込を追加。
+Firebase設定を firebase-config.js に入れるとクラウド同期が有効になります。未設定でもローカル保存で動作します。
