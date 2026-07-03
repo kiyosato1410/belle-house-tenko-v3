@@ -1,4 +1,4 @@
-const CACHE_NAME='belle-house-tenko-v3-20260703-3';
+const CACHE_NAME='belle-house-tenko-v3-final-20260704-1';
 const ASSETS=['./','index.html','style.css','app.js','manifest.json','icon-192.png','icon-512.png'];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE_NAME).then(c=>c.addAll(ASSETS)))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.map(k=>k!==CACHE_NAME?caches.delete(k):null))).then(()=>self.clients.claim()))});
