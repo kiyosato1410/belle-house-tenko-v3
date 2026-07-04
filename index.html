@@ -51,7 +51,19 @@
   <label>GPS位置情報</label>
   <div class="inline"><button id="gpsBtn" class="ok">現在地を取得</button><input id="gpsText" readonly placeholder="未取得"></div>
   <label>写真</label><input id="photoInput" type="file" accept="image/*" capture="environment">
+  <button type="button" id="removePhotoBtn" class="danger">
+  添付写真を削除
+</button>
   <img id="photoPreview" class="preview hidden">
+  = '';
+  <label>写真</label>
+<input id="photoInput" type="file" accept="image/*" capture="environment">
+
+<button type="button" id="removePhotoBtn" class="danger">
+  添付写真を削除
+</button>
+
+<img id="photoPreview" class="preview hidden">  
   <label>備考</label><textarea id="remarks"></textarea>
   <button id="submitRollcallBtn">点呼送信</button><button id="driverLogoutBtn" class="secondary">ログアウト</button>
 </div>
