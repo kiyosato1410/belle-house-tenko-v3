@@ -3,140 +3,193 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BELLE HOUSE 点呼システム Ver.4.0</title>
+<title>BELLE HOUSE 点呼システム Ver.5.3</title>
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#071f3d">
-<link rel="apple-touch-icon" href="icon-192.png">
 </head>
 <body>
 <header class="app-header">
   <div class="brand">
-    <img src="icon-192.png" class="brand-icon">
-    <div><h1>BELLE HOUSE 点呼システム</h1><p>Ver.4.0 / Firebaseクラウド同期対応版</p></div>
+    <div class="brand-icon">BH</div>
+    <div>
+      <h1>BELLE HOUSE 点呼システム</h1>
+      <p>Ver.5.3 / 同期・PWA強化版</p>
+    </div>
   </div>
   <span id="syncStatus" class="sync-badge">ローカル保存</span>
 </header>
 
 <main class="container">
-<section id="loginView" class="card">
-  <h2>ログイン</h2>
-  <div class="grid two">
-    <div><label>ログイン区分</label><select id="loginType"><option value="driver">ドライバー</option><option value="admin">管理者</option></select></div>
-    <div><label>名前または管理者ID</label><input id="loginName" placeholder="ドライバー名 / admin"></div>
-  </div>
-  <label>パスワード</label><input id="loginPassword" type="password" placeholder="管理者は 1234 / ドライバーは任意">
-  <button id="loginBtn">ログイン</button>
-  <p class="muted">管理者：<b>admin / 1234</b>　※Firebase設定後はスマホ→PC同期できます。</p>
-</section>
+  <section id="loginView" class="card">
+    <h2>ログイン</h2>
+    <label>ログイン区分</label>
+    <select id="loginType">
+      <option value="driver">ドライバー</option>
+      <option value="admin">管理者</option>
+    </select>
+    <label>名前 / ID</label>
+    <input id="loginName" placeholder="管理者は admin / ドライバーは氏名">
+    <label>パスワード</label>
+    <input id="loginPassword" type="password" placeholder="管理者初期パスワード 1234 / ドライバーは任意">
+    <button id="loginBtn" class="primary">ログイン</button>
+    <p class="small">管理者初期ID：admin / パスワード：1234</p>
+  </section>
 
-<section id="driverView" class="hidden">
-<div class="card">
-  <div class="section-title"><h2>ドライバー点呼</h2><span id="currentDriver" class="pill"></span></div>
-  <div class="grid two">
-    <div><label>点呼区分</label><select id="rollcallType"><option>乗務前点呼</option><option>乗務後点呼</option><option>中間点呼</option></select></div>
-    <div><label>点呼方法</label><select id="rollcallMethod"><option>対面</option><option>電話</option><option>IT・ビデオ</option><option>その他</option></select></div>
-    <div><label>車両番号</label><input id="vehicleNo"></div>
-    <div><label>走行距離メーター</label><input id="odometer" inputmode="numeric"></div>
-  </div>
-  <div class="notice"><b>安全確認</b><br>未チェックがある場合は「要確認」として保存されます。</div>
-  <h3>軽貨物 点呼チェック項目</h3>
-  <div id="checkList" class="checks"></div>
-  <div class="grid two">
-    <div><label>アルコール測定値</label><input id="alcoholValue" placeholder="0.00 mg/L"></div>
-    <div><label>睡眠時間</label><input id="sleepHours" placeholder="7時間"></div>
-    <div><label>管理者からの指示事項</label><input id="instruction" placeholder="特になし"></div>
-    <div><label>積荷・配送先の注意</label><input id="deliveryNote"></div>
-  </div>
-  <label>GPS位置情報</label>
-  <div class="inline"><button id="gpsBtn" class="ok">現在地を取得</button><input id="gpsText" readonly placeholder="未取得"></div>
-  <label>写真</label><input id="photoInput" type="file" accept="image/*" capture="environment">
-  <button type="button" id="removePhotoBtn" class="danger">
-  添付写真を削除
-</button>
-  <img id="photoPreview" class="preview hidden">
-  = '';
-  <label>写真</label>
-<input id="photoInput" type="file" accept="image/*" capture="environment">
+  <section id="driverView" class="hidden">
+    <div class="card">
+      <div class="section-title">
+        <h2>ドライバー点呼</h2>
+        <button id="driverLogoutBtn" class="secondary">ログアウト</button>
+      </div>
+      <p id="currentDriver" class="driver-name"></p>
 
-<button type="button" id="removePhotoBtn" class="danger">
-  添付写真を削除
-</button>
+      <div class="grid three">
+        <div>
+          <label>点呼区分</label>
+          <select id="rollcallType">
+            <option>乗務前点呼</option>
+            <option>乗務後点呼</option>
+            <option>中間点呼</option>
+          </select>
+        </div>
+        <div>
+          <label>点呼方法</label>
+          <select id="rollcallMethod">
+            <option>対面</option>
+            <option>電話</option>
+            <option>IT点呼</option>
+          </select>
+        </div>
+        <div>
+          <label>車両番号</label>
+          <input id="vehicleNo" placeholder="例：品川480 あ 1234">
+        </div>
+      </div>
 
-<img id="photoPreview" class="preview hidden">  
-  <label>備考</label><textarea id="remarks"></textarea>
-  <button id="submitRollcallBtn">点呼送信</button><button id="driverLogoutBtn" class="secondary">ログアウト</button>
-</div>
-</section>
+      <div class="grid three">
+        <div>
+          <label>走行メーター</label>
+          <input id="odometer" inputmode="numeric" placeholder="例：12345">
+        </div>
+        <div>
+          <label>アルコール数値</label>
+          <input id="alcoholValue" inputmode="decimal" placeholder="例：0.00">
+        </div>
+        <div>
+          <label>睡眠時間</label>
+          <input id="sleepHours" inputmode="decimal" placeholder="例：7">
+        </div>
+      </div>
 
-<section id="adminView" class="hidden">
-<div class="card">
-  <div class="section-title"><h2>管理者ホーム</h2><span class="pill">admin</span></div>
-  <div class="admin-nav">
-    <button data-tab="dashboard">ダッシュボード</button>
-    <button data-tab="records">点呼履歴</button>
-    <button data-tab="drivers">ドライバー登録</button>
-    <button data-tab="admins">管理者追加</button>
-    <button id="notifyBtn" class="ok">点呼忘れ通知ON</button>
-    <button id="exportCsvBtn" class="ok">CSV出力</button>
-    <button id="printPdfBtn" class="ok">PDF/印刷</button>
-    <button id="backupBtn">バックアップ保存</button>
-    <button id="restoreBtn">バックアップ読込</button>
-    <button id="clearRecordsBtn" class="danger">履歴クリア</button>
-    <button id="adminLogoutBtn" class="secondary">ログアウト</button>
-  </div>
-  <input id="restoreInput" type="file" accept="application/json" class="hidden">
-</div>
+      <label>確認項目</label>
+      <div id="checkList" class="check-list"></div>
 
-<div id="dashboardTab" class="card admin-tab">
-  <h2>ダッシュボード</h2>
-  <div class="stats">
-    <div><span id="statToday">0</span><p>今日の点呼</p></div>
-    <div><span id="statNeedCheck">0</span><p>要確認</p></div>
-    <div><span id="statDrivers">0</span><p>登録ドライバー</p></div>
-    <div><span id="statMonth">0</span><p>今月の点呼</p></div>
-  </div>
-  <h3>本日未点呼の登録ドライバー</h3><div id="missingToday" class="notice"></div>
-  <h3>統計グラフ</h3>
-  <div class="chart-card"><canvas id="summaryChart" width="600" height="260"></canvas></div>
-</div>
+      <label>運行指示</label>
+      <textarea id="instruction" rows="2" placeholder="管理者からの指示・確認事項"></textarea>
 
-<div id="recordsTab" class="card admin-tab hidden">
-  <h2>点呼履歴</h2>
-  <div class="grid three">
-    <div><label>表示</label><select id="recordFilter"><option value="today">今日のみ</option><option value="all">全期間</option><option value="need">要確認のみ</option><option value="month">今月のみ</option></select></div>
-    <div><label>ドライバー検索</label><input id="driverSearch"></div>
-    <div><label>日付検索</label><input id="dateSearch" type="date"></div>
-  </div>
-  <div id="printArea" class="table-wrap"><table><thead><tr><th>判定</th><th>日時</th><th>区分</th><th>名前</th><th>車両</th><th>安全チェック</th><th>GPS</th><th>写真</th><th>備考</th></tr></thead><tbody id="recordsBody"></tbody></table></div>
-</div>
+      <label>配送メモ / 担当コース</label>
+      <textarea id="deliveryNote" rows="2" placeholder="Amazon、ヤマト、佐川、スポット便など"></textarea>
 
-<div id="driversTab" class="card admin-tab hidden">
-  <h2>ドライバー登録</h2>
-  <div class="grid three">
-    <div><label>ドライバー名</label><input id="newDriverName"></div>
-    <div><label>電話番号</label><input id="newDriverTel"></div>
-    <div><label>免許証期限</label><input id="newDriverLicense" type="date"></div>
-    <div><label>車両番号</label><input id="newDriverVehicle"></div>
-    <div><label>備考</label><input id="newDriverMemo"></div>
-  </div>
-  <button id="addDriverBtn">登録</button>
-  <div class="table-wrap"><table><thead><tr><th>名前</th><th>電話</th><th>免許期限</th><th>車両</th><th>備考</th><th>登録日</th><th>操作</th></tr></thead><tbody id="driversBody"></tbody></table></div>
-</div>
+      <label>GPS</label>
+      <div class="inline-actions">
+        <input id="gpsText" readonly placeholder="GPS未取得">
+        <button id="gpsBtn" type="button" class="secondary">GPS取得</button>
+      </div>
 
-<div id="adminsTab" class="card admin-tab hidden">
-  <h2>複数管理者</h2>
-  <div class="grid two">
-    <div><label>管理者ID</label><input id="newAdminId" placeholder="例：manager"></div>
-    <div><label>パスワード</label><input id="newAdminPass" placeholder="例：5678"></div>
-  </div>
-  <button id="addAdminBtn">管理者追加</button>
-  <p class="muted">初期管理者 admin / 1234 は削除できません。</p>
-  <div class="table-wrap"><table><thead><tr><th>ID</th><th>登録日</th><th>操作</th></tr></thead><tbody id="adminsBody"></tbody></table></div>
-</div>
-</section>
+      <label>写真添付</label>
+      <input id="photoInput" type="file" accept="image/*" capture="environment">
+      <div class="photo-actions">
+        <button id="removePhotoBtn" type="button" class="danger">添付写真を削除</button>
+      </div>
+      <img id="photoPreview" class="photo-preview hidden" alt="添付写真プレビュー">
+      <p class="small">写真を添付して登録できない場合は、この削除ボタンで添付データを消してから再送信してください。</p>
+
+      <label>備考</label>
+      <textarea id="remarks" rows="3" placeholder="体調・車両・積荷などの補足"></textarea>
+
+      <button id="submitRollcallBtn" class="success">点呼を送信</button>
+    </div>
+  </section>
+
+  <section id="adminView" class="hidden">
+    <div class="card">
+      <div class="section-title">
+        <h2>管理者ホーム</h2>
+        <button id="adminLogoutBtn" class="secondary">ログアウト</button>
+      </div>
+      <nav class="admin-nav">
+        <button data-tab="dashboard">ダッシュボード</button>
+        <button data-tab="records">点呼記録</button>
+        <button data-tab="drivers">ドライバー管理</button>
+        <button data-tab="admins">管理者管理</button>
+      </nav>
+    </div>
+
+    <div id="dashboardTab" class="admin-tab card">
+      <h2>ダッシュボード</h2>
+      <div class="stats">
+        <div class="stat-box"><div class="small">本日点呼</div><div id="statToday" class="stat-number">0</div></div>
+        <div class="stat-box"><div class="small">要確認</div><div id="statNeedCheck" class="stat-number">0</div></div>
+        <div class="stat-box"><div class="small">登録ドライバー</div><div id="statDrivers" class="stat-number">0</div></div>
+        <div class="stat-box"><div class="small">今月点呼</div><div id="statMonth" class="stat-number">0</div></div>
+      </div>
+      <h3>本日の未点呼者</h3>
+      <p id="missingToday">未点呼者はいません</p>
+      <canvas id="summaryChart" width="620" height="260"></canvas>
+      <div class="admin-actions">
+        <button id="notifyBtn" class="secondary">点呼忘れ通知ON</button>
+        <button id="backupBtn" class="secondary">バックアップ</button>
+        <button id="restoreBtn" class="secondary">復元</button>
+        <input id="restoreInput" type="file" accept="application/json" class="hidden">
+      </div>
+    </div>
+
+    <div id="recordsTab" class="admin-tab card hidden">
+      <h2>点呼記録</h2>
+      <div class="grid three"></div>
+      <div class="admin-actions">
+        <button id="exportCsvBtn" class="success">検索結果CSV出力</button>
+        <button id="printPdfBtn" class="success">PDF印刷</button>
+        <button id="clearRecordsBtn" class="danger">全履歴削除</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>判定</th><th>日時</th><th>区分/コース</th><th>名前</th><th>車両</th><th>確認</th><th>GPS</th><th>写真</th><th>備考</th></tr></thead>
+          <tbody id="recordsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="driversTab" class="admin-tab card hidden">
+      <h2>ドライバー管理</h2>
+      <div class="grid three">
+        <div><label>ドライバー名</label><input id="newDriverName"></div>
+        <div><label>電話番号</label><input id="newDriverTel"></div>
+        <div><label>免許期限</label><input id="newDriverLicense" type="date"></div>
+        <div><label>車両番号</label><input id="newDriverVehicle"></div>
+        <div><label>メモ</label><input id="newDriverMemo"></div>
+        <div><label>&nbsp;</label><button id="addDriverBtn" class="success">ドライバー追加</button></div>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr><th>名前</th><th>電話</th><th>免許期限</th><th>車両</th><th>メモ</th><th>登録日</th><th>操作</th></tr></thead><tbody id="driversBody"></tbody></table>
+      </div>
+    </div>
+
+    <div id="adminsTab" class="admin-tab card hidden">
+      <h2>管理者管理</h2>
+      <div class="grid three">
+        <div><label>管理者ID</label><input id="newAdminId"></div>
+        <div><label>パスワード</label><input id="newAdminPass" type="password"></div>
+        <div><label>&nbsp;</label><button id="addAdminBtn" class="success">管理者追加</button></div>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr><th>ID</th><th>登録日</th><th>操作</th></tr></thead><tbody id="adminsBody"></tbody></table>
+      </div>
+    </div>
+  </section>
 </main>
-<footer>BELLE HOUSE 点呼システム Ver.4.0</footer>
+
 <script src="firebase-config.js"></script>
 <script type="module" src="firebase-sync.js"></script>
 <script src="app.js"></script>
