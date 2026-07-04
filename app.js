@@ -2,6 +2,7 @@
 (function(){
 'use strict';
 const ADMIN_ID='admin',ADMIN_PASS='1234',LS_RECORDS='belle_house_tenko_v40_records',LS_DRIVERS='belle_house_tenko_v40_drivers',LS_ADMINS='belle_house_tenko_v40_admins';
+const APP_VERSION='Ver.6.0';
 let currentUser='',gpsData=null;
 let cloudStarted=false;
 let cloudRetryCount=0;
@@ -94,7 +95,7 @@ function renderDriverOptions(){const s=$('driverSelectSearch');if(!s)return;cons
 function login(){const type=$('loginType').value,name=$('loginName').value.trim(),pass=$('loginPassword').value.trim();if(!name||!pass){alert('名前とパスワードを入力してください');return}if(type==='admin'){const extra=getAdmins().some(a=>String(a.name).trim()===name&&String(a.pass).trim()===pass);if((name===ADMIN_ID&&pass===ADMIN_PASS)||extra){$('loginView').classList.add('hidden');$('adminView').classList.remove('hidden');showAdminTab('dashboard');return}alert('管理者IDまたはパスワードが違います');return}currentUser=name;if($('currentDriver'))$('currentDriver').textContent=`${name} さん`;const d=getDrivers().find(x=>x.name===name);if(d&&d.vehicle&&$('vehicleNo'))$('vehicleNo').value=d.vehicle;$('loginView').classList.add('hidden');$('driverView').classList.remove('hidden')}
 function getGPS(){if(!navigator.geolocation){alert('GPS非対応です');return}$('gpsText').value='取得中...';navigator.geolocation.getCurrentPosition(p=>{gpsData={lat:p.coords.latitude,lng:p.coords.longitude,accuracy:p.coords.accuracy,time:nowText()};$('gpsText').value=`緯度:${gpsData.lat.toFixed(6)} 経度:${gpsData.lng.toFixed(6)} 精度:${Math.round(gpsData.accuracy)}m`},()=>{gpsData=null;$('gpsText').value='取得失敗';alert('GPS取得に失敗しました。位置情報を許可してください。')},{enableHighAccuracy:true,timeout:10000,maximumAge:0})}
 function previewPhoto(){const f=$('photoInput')?.files?.[0];if(!f){$('photoPreview')?.classList.add('hidden');return}const r=new FileReader();r.onload=()=>{$('photoPreview').src=r.result;$('photoPreview').classList.remove('hidden')};r.readAsDataURL(f)}
-function removePhoto(){
+function removePhoto(silent=false){
   const input = $('photoInput');
   const preview = $('photoPreview');
 
@@ -105,7 +106,7 @@ function removePhoto(){
     preview.classList.add('hidden');
   }
 
-  alert('添付写真を削除しました');
+  if(!silent) alert('添付写真を削除しました');
 }
 function resizePhotoFile(file){
   return new Promise((resolve,reject)=>{
@@ -132,7 +133,7 @@ function resizePhotoFile(file){
   });
 }
 function detectCourse(){const t=(($('deliveryNote')?.value||'')+' '+($('remarks')?.value||''));if(t.includes('Amazon'))return'Amazon';if(t.includes('ヤマト'))return'ヤマト';if(t.includes('佐川'))return'佐川';if(t.includes('スポット'))return'スポット便';return''}
-async function submitRollcall(){const checks={};CHECK_ITEMS.forEach(([id])=>checks[id]=!!$(id)?.checked);const allOk=CHECK_ITEMS.every(([id])=>checks[id]);if(!allOk&&!confirm('未チェック項目があります。要確認として送信しますか？'))return;const save=async photo=>{const rec={id:String(Date.now()),ok:allOk,time:nowText(),date:todayKey(),isoDate:isoDate(),month:monthKey(),driver:currentUser,name:currentUser,type:$('rollcallType')?.value||'',method:$('rollcallMethod')?.value||'',vehicleNo:$('vehicleNo')?.value.trim()||'',odometer:$('odometer')?.value.trim()||'',alcoholValue:$('alcoholValue')?.value.trim()||'',alcohol:$('alcoholValue')?.value.trim()||'',sleepHours:$('sleepHours')?.value.trim()||'',health:checks.healthGood?'良好':'要確認',instruction:$('instruction')?.value.trim()||'',deliveryNote:$('deliveryNote')?.value.trim()||'',course:detectCourse(),checks,gps:gpsData,photo:photo||'',remarks:$('remarks')?.value.trim()||'',createdAt:nowText()};const arr=getRecords();arr.unshift(rec);try{setLocal(LS_RECORDS,arr)}catch(e){alert('写真データが大きすぎて保存できません。添付写真を削除するか、別の小さい写真で送信してください。');return}await cloudSave('record',rec);alert(window.BELLE_CLOUD&&window.BELLE_CLOUD.enabled?'点呼を送信しました（クラウド同期済み）':'点呼を保存しました（ローカル保存）');removePhoto();};const f=$('photoInput')?.files?.[0];try{const photo=f?await resizePhotoFile(f):'';await save(photo)}catch(e){alert(e.message||'写真の処理に失敗しました。添付写真を削除して再送信してください。')}}
+async function submitRollcall(){const checks={};CHECK_ITEMS.forEach(([id])=>checks[id]=!!$(id)?.checked);const allOk=CHECK_ITEMS.every(([id])=>checks[id]);if(!allOk&&!confirm('未チェック項目があります。要確認として送信しますか？'))return;const save=async photo=>{const rec={id:String(Date.now()),ok:allOk,time:nowText(),date:todayKey(),isoDate:isoDate(),month:monthKey(),driver:currentUser,name:currentUser,type:$('rollcallType')?.value||'',method:$('rollcallMethod')?.value||'',vehicleNo:$('vehicleNo')?.value.trim()||'',odometer:$('odometer')?.value.trim()||'',alcoholValue:$('alcoholValue')?.value.trim()||'',alcohol:$('alcoholValue')?.value.trim()||'',sleepHours:$('sleepHours')?.value.trim()||'',health:checks.healthGood?'良好':'要確認',instruction:$('instruction')?.value.trim()||'',deliveryNote:$('deliveryNote')?.value.trim()||'',course:detectCourse(),checks,gps:gpsData,photo:photo||'',remarks:$('remarks')?.value.trim()||'',createdAt:nowText()};const arr=getRecords();arr.unshift(rec);try{setLocal(LS_RECORDS,arr)}catch(e){alert('写真データが大きすぎて保存できません。添付写真を削除するか、別の小さい写真で送信してください。');return}await cloudSave('record',rec);alert(window.BELLE_CLOUD&&window.BELLE_CLOUD.enabled?'点呼を送信しました（クラウド同期済み）':'点呼を保存しました（ローカル保存）');removePhoto(true);};const f=$('photoInput')?.files?.[0];try{const photo=f?await resizePhotoFile(f):'';await save(photo)}catch(e){alert(e.message||'写真の処理に失敗しました。添付写真を削除して再送信してください。')}}
 function showAdminTab(tab){document.querySelectorAll('.admin-tab').forEach(e=>e.classList.add('hidden'));$(`${tab}Tab`)?.classList.remove('hidden');if(tab==='dashboard')updateDashboard();if(tab==='records'){enhanceSearchUI();renderRecords()}if(tab==='drivers')renderDrivers();if(tab==='admins')renderAdmins()}
 function updateDashboard(){const r=getRecords(),d=getDrivers();if($('statToday'))$('statToday').textContent=r.filter(x=>x.date===todayKey()).length;if($('statNeedCheck'))$('statNeedCheck').textContent=r.filter(x=>!x.ok).length;if($('statDrivers'))$('statDrivers').textContent=d.length;if($('statMonth'))$('statMonth').textContent=r.filter(x=>x.month===monthKey()).length;const names=new Set(r.filter(x=>x.date===todayKey()).map(x=>x.driver||x.name));const miss=d.filter(x=>!names.has(x.name)).map(x=>x.name);if($('missingToday'))$('missingToday').textContent=miss.length?miss.join('、'):'未点呼者はいません';drawChart()}
 function drawChart(){const c=$('summaryChart');if(!c)return;const ctx=c.getContext('2d'),r=getRecords();ctx.clearRect(0,0,c.width,c.height);const vals=[r.filter(x=>x.date===todayKey()).length,r.filter(x=>x.month===monthKey()).length,r.filter(x=>!x.ok).length,getDrivers().length],labs=['今日','今月','要確認','登録'],max=Math.max(...vals,1);ctx.fillStyle='#071f3d';ctx.font='16px sans-serif';labs.forEach((l,i)=>{const h=vals[i]/max*160,x=60+i*120;ctx.fillRect(x,210-h,70,h);ctx.fillText(l,x,235);ctx.fillText(vals[i],x+24,200-h)})}
@@ -148,7 +149,7 @@ function exportCSV(){const rows=[['判定','日時','点呼区分','担当コー
 function backupData(){const data={records:getRecords(),drivers:getDrivers(),admins:getAdmins(),created:nowText()};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='belle-house-tenko-backup.json';a.click()}
 function restoreData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const data=JSON.parse(r.result);if(data.records)setLocal(LS_RECORDS,data.records);if(data.drivers)setLocal(LS_DRIVERS,data.drivers);if(data.admins)setLocal(LS_ADMINS,data.admins);alert('バックアップを読み込みました');location.reload()}catch{alert('読み込みに失敗しました')}};r.readAsText(f)}
 async function enableNotification(){if(!('Notification'in window)){alert('この端末は通知非対応です');return}const p=await Notification.requestPermission();if(p!=='granted'){alert('通知が許可されませんでした');return}new Notification('BELLE HOUSE',{body:'点呼忘れ通知を有効にしました'})}
-function clearRecords(){if(confirm('点呼履歴をすべて削除しますか？')){localStorage.removeItem(LS_RECORDS);updateDashboard();renderRecords()}}
+async function clearRecords(){if(!confirm('点呼履歴をすべて削除しますか？'))return;localStorage.removeItem(LS_RECORDS);if(window.BELLE_CLOUD&&window.BELLE_CLOUD.enabled&&window.BELLE_CLOUD.clearRecords){try{await window.BELLE_CLOUD.clearRecords()}catch(e){console.error(e);alert('クラウド側の削除に失敗しました。Firestoreルールを確認してください。')}}updateDashboard();renderRecords()}
 setInterval(()=>{if(!cloudStarted)startCloudSync();updateSyncStatus();},3000);
 document.addEventListener('DOMContentLoaded',init);
 })();

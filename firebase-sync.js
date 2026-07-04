@@ -6,12 +6,9 @@ import {
   setDoc,
   doc,
   deleteDoc,
-  serverTimestamp
+  getDocs,
+  writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-
-function status(detail, message = "") {
-  window.dispatchEvent(new CustomEvent("belle-cloud-status", { detail, message }));
-}
 
 try {
   const cfg = window.BELLE_FIREBASE_CONFIG || {};
@@ -19,7 +16,7 @@ try {
 
   if (!ready) {
     window.BELLE_CLOUD = null;
-    status("local", "firebase-config.js が未設定です");
+    window.dispatchEvent(new CustomEvent("belle-cloud-status", { detail: "local" }));
   } else {
     const app = initializeApp(cfg);
     const db = getFirestore(app);
@@ -28,16 +25,16 @@ try {
       collection(db, name),
       snap => cb(snap.docs.map(d => ({ ...d.data(), id: d.id }))),
       error => {
-        console.error("Firestore listen error:", name, error);
-        status("error", error.message || String(error));
+        console.error(`Firestore listen error: ${name}`, error);
+        window.dispatchEvent(new CustomEvent("belle-cloud-status", { detail: "error" }));
       }
     );
 
-    const clean = data => {
-      const obj = { ...data };
-      Object.keys(obj).forEach(k => obj[k] === undefined && delete obj[k]);
-      obj.updatedAt = serverTimestamp();
-      return obj;
+    const clearCollection = async (name) => {
+      const snap = await getDocs(collection(db, name));
+      const batch = writeBatch(db);
+      snap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
     };
 
     window.BELLE_CLOUD = {
@@ -45,17 +42,19 @@ try {
       onRecords(cb) { return listen("tenkoRecords", cb); },
       onDrivers(cb) { return listen("drivers", cb); },
       onAdmins(cb) { return listen("admins", cb); },
-      saveRecord(record) { return setDoc(doc(db, "tenkoRecords", String(record.id)), clean(record), { merge: true }); },
-      saveDriver(driver) { return setDoc(doc(db, "drivers", String(driver.id)), clean(driver), { merge: true }); },
-      saveAdmin(admin) { return setDoc(doc(db, "admins", String(admin.id)), clean(admin), { merge: true }); },
+      saveRecord(record) { return setDoc(doc(db, "tenkoRecords", String(record.id)), record); },
+      saveDriver(driver) { return setDoc(doc(db, "drivers", String(driver.id)), driver); },
+      saveAdmin(admin) { return setDoc(doc(db, "admins", String(admin.id || admin.name)), admin); },
+      deleteRecord(id) { return deleteDoc(doc(db, "tenkoRecords", String(id))); },
       deleteDriver(id) { return deleteDoc(doc(db, "drivers", String(id))); },
-      deleteAdmin(id) { return deleteDoc(doc(db, "admins", String(id))); }
+      deleteAdmin(id) { return deleteDoc(doc(db, "admins", String(id))); },
+      clearRecords() { return clearCollection("tenkoRecords"); }
     };
 
-    status("cloud", "Firebase接続OK");
+    window.dispatchEvent(new CustomEvent("belle-cloud-status", { detail: "cloud" }));
   }
 } catch (error) {
   console.error("Firebase sync error:", error);
   window.BELLE_CLOUD = null;
-  status("error", error.message || String(error));
+  window.dispatchEvent(new CustomEvent("belle-cloud-status", { detail: "error" }));
 }
