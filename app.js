@@ -4,6 +4,8 @@
 const ADMIN_ID='admin',ADMIN_PASS='1234',LS_RECORDS='belle_house_tenko_v40_records',LS_DRIVERS='belle_house_tenko_v40_drivers',LS_ADMINS='belle_house_tenko_v40_admins';
 let currentUser='',gpsData=null;
 let cloudStarted=false;
+let cloudRetryCount=0;
+let cloudLastError='';
 const cloudUnsubs=[];
 const CHECK_ITEMS=[['alcDevice','アルコール検知器を使用した'],['alcNone','酒気帯びなし'],['healthGood','疾病・疲労・睡眠不足なし'],['sleepOk','睡眠不足なし'],['licenseOk','運転免許証を携帯・有効確認'],['dailyInspection','日常点検を実施'],['vehicleOk','車両に異常なし'],['tireOk','タイヤ・灯火・ブレーキ確認'],['cargoOk','積荷・荷崩れ防止確認'],['overloadOk','過積載なし'],['restOk','休憩・拘束時間に無理なし'],['instructionOk','運行上の注意事項を確認']];
 const $=id=>document.getElementById(id);const nowText=()=>new Date().toLocaleString('ja-JP',{hour12:false});const todayKey=()=>new Date().toLocaleDateString('ja-JP');const isoDate=()=>new Date().toISOString().slice(0,10);const monthKey=()=>new Date().toISOString().slice(0,7);
@@ -15,7 +17,7 @@ function init(){
   renderCheckList();
   bindEvents();
   startCloudSync();
-  window.addEventListener('belle-cloud-status',()=>{updateSyncStatus();startCloudSync();});
+  window.addEventListener('belle-cloud-status',e=>{cloudLastError=e?.detail==='error'?'Firebase接続エラー':'';updateSyncStatus();startCloudSync();});
   window.addEventListener('online',()=>updateSyncStatus());
   window.addEventListener('offline',()=>updateSyncStatus());
   if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
@@ -24,7 +26,14 @@ function updateSyncStatus(){
   const badge=$('syncStatus');
   if(!badge)return;
   const cloud=!!(window.BELLE_CLOUD&&window.BELLE_CLOUD.enabled);
+  if(cloudLastError){
+    badge.textContent='同期エラー';
+    badge.title=cloudLastError;
+    badge.className='sync-badge local';
+    return;
+  }
   badge.textContent=cloud?(navigator.onLine?'クラウド同期ON':'オフライン保存中'):'ローカル保存';
+  badge.title=cloud?'Firebaseに接続しています':'firebase-config.js / firebase-sync.js を確認してください';
   badge.className='sync-badge '+(cloud?'cloud':'local');
 }
 function sortByNewest(a){return [...(a||[])].sort((x,y)=>String(y.createdAt||y.time||y.id||'').localeCompare(String(x.createdAt||x.time||x.id||'')))}
@@ -37,12 +46,26 @@ function refreshCurrentViews(){
 }
 function startCloudSync(){
   const cloud=window.BELLE_CLOUD;
-  if(cloudStarted||!cloud||!cloud.enabled)return;
+  if(cloudStarted)return;
+  if(!cloud||!cloud.enabled){
+    if(cloudRetryCount<20){cloudRetryCount++;setTimeout(startCloudSync,500);}
+    return;
+  }
   cloudStarted=true;
   updateSyncStatus();
   if(cloud.onRecords){cloudUnsubs.push(cloud.onRecords(records=>{setLocal(LS_RECORDS,sortByNewest(records));refreshCurrentViews();}));}
   if(cloud.onDrivers){cloudUnsubs.push(cloud.onDrivers(drivers=>{setLocal(LS_DRIVERS,sortByNewest(drivers));refreshCurrentViews();}));}
   if(cloud.onAdmins){cloudUnsubs.push(cloud.onAdmins(admins=>{setLocal(LS_ADMINS,sortByNewest(admins));refreshCurrentViews();}));}
+  uploadLocalDataToCloud();
+}
+async function uploadLocalDataToCloud(){
+  const c=window.BELLE_CLOUD;
+  if(!c||!c.enabled)return;
+  try{
+    for(const rec of getRecords()) if(rec&&rec.id&&c.saveRecord) await c.saveRecord(rec);
+    for(const d of getDrivers()) if(d&&d.id&&c.saveDriver) await c.saveDriver(d);
+    for(const a of getAdmins()) if(a&&a.id&&c.saveAdmin) await c.saveAdmin(a);
+  }catch(e){console.warn('Local upload skipped',e)}
 }
 async function cloudSave(kind,data){
   const c=window.BELLE_CLOUD;
@@ -109,7 +132,7 @@ function resizePhotoFile(file){
   });
 }
 function detectCourse(){const t=(($('deliveryNote')?.value||'')+' '+($('remarks')?.value||''));if(t.includes('Amazon'))return'Amazon';if(t.includes('ヤマト'))return'ヤマト';if(t.includes('佐川'))return'佐川';if(t.includes('スポット'))return'スポット便';return''}
-async function submitRollcall(){const checks={};CHECK_ITEMS.forEach(([id])=>checks[id]=!!$(id)?.checked);const allOk=CHECK_ITEMS.every(([id])=>checks[id]);if(!allOk&&!confirm('未チェック項目があります。要確認として送信しますか？'))return;const save=async photo=>{const rec={id:String(Date.now()),ok:allOk,time:nowText(),date:todayKey(),isoDate:isoDate(),month:monthKey(),driver:currentUser,name:currentUser,type:$('rollcallType')?.value||'',method:$('rollcallMethod')?.value||'',vehicleNo:$('vehicleNo')?.value.trim()||'',odometer:$('odometer')?.value.trim()||'',alcoholValue:$('alcoholValue')?.value.trim()||'',alcohol:$('alcoholValue')?.value.trim()||'',sleepHours:$('sleepHours')?.value.trim()||'',health:checks.healthGood?'良好':'要確認',instruction:$('instruction')?.value.trim()||'',deliveryNote:$('deliveryNote')?.value.trim()||'',course:detectCourse(),checks,gps:gpsData,photo:photo||'',remarks:$('remarks')?.value.trim()||'',createdAt:nowText()};const arr=getRecords();arr.unshift(rec);try{setLocal(LS_RECORDS,arr)}catch(e){alert('写真データが大きすぎて保存できません。添付写真を削除するか、別の小さい写真で送信してください。');return}await cloudSave('record',rec);alert('点呼を送信しました');removePhoto();};const f=$('photoInput')?.files?.[0];try{const photo=f?await resizePhotoFile(f):'';await save(photo)}catch(e){alert(e.message||'写真の処理に失敗しました。添付写真を削除して再送信してください。')}}
+async function submitRollcall(){const checks={};CHECK_ITEMS.forEach(([id])=>checks[id]=!!$(id)?.checked);const allOk=CHECK_ITEMS.every(([id])=>checks[id]);if(!allOk&&!confirm('未チェック項目があります。要確認として送信しますか？'))return;const save=async photo=>{const rec={id:String(Date.now()),ok:allOk,time:nowText(),date:todayKey(),isoDate:isoDate(),month:monthKey(),driver:currentUser,name:currentUser,type:$('rollcallType')?.value||'',method:$('rollcallMethod')?.value||'',vehicleNo:$('vehicleNo')?.value.trim()||'',odometer:$('odometer')?.value.trim()||'',alcoholValue:$('alcoholValue')?.value.trim()||'',alcohol:$('alcoholValue')?.value.trim()||'',sleepHours:$('sleepHours')?.value.trim()||'',health:checks.healthGood?'良好':'要確認',instruction:$('instruction')?.value.trim()||'',deliveryNote:$('deliveryNote')?.value.trim()||'',course:detectCourse(),checks,gps:gpsData,photo:photo||'',remarks:$('remarks')?.value.trim()||'',createdAt:nowText()};const arr=getRecords();arr.unshift(rec);try{setLocal(LS_RECORDS,arr)}catch(e){alert('写真データが大きすぎて保存できません。添付写真を削除するか、別の小さい写真で送信してください。');return}await cloudSave('record',rec);alert(window.BELLE_CLOUD&&window.BELLE_CLOUD.enabled?'点呼を送信しました（クラウド同期済み）':'点呼を保存しました（ローカル保存）');removePhoto();};const f=$('photoInput')?.files?.[0];try{const photo=f?await resizePhotoFile(f):'';await save(photo)}catch(e){alert(e.message||'写真の処理に失敗しました。添付写真を削除して再送信してください。')}}
 function showAdminTab(tab){document.querySelectorAll('.admin-tab').forEach(e=>e.classList.add('hidden'));$(`${tab}Tab`)?.classList.remove('hidden');if(tab==='dashboard')updateDashboard();if(tab==='records'){enhanceSearchUI();renderRecords()}if(tab==='drivers')renderDrivers();if(tab==='admins')renderAdmins()}
 function updateDashboard(){const r=getRecords(),d=getDrivers();if($('statToday'))$('statToday').textContent=r.filter(x=>x.date===todayKey()).length;if($('statNeedCheck'))$('statNeedCheck').textContent=r.filter(x=>!x.ok).length;if($('statDrivers'))$('statDrivers').textContent=d.length;if($('statMonth'))$('statMonth').textContent=r.filter(x=>x.month===monthKey()).length;const names=new Set(r.filter(x=>x.date===todayKey()).map(x=>x.driver||x.name));const miss=d.filter(x=>!names.has(x.name)).map(x=>x.name);if($('missingToday'))$('missingToday').textContent=miss.length?miss.join('、'):'未点呼者はいません';drawChart()}
 function drawChart(){const c=$('summaryChart');if(!c)return;const ctx=c.getContext('2d'),r=getRecords();ctx.clearRect(0,0,c.width,c.height);const vals=[r.filter(x=>x.date===todayKey()).length,r.filter(x=>x.month===monthKey()).length,r.filter(x=>!x.ok).length,getDrivers().length],labs=['今日','今月','要確認','登録'],max=Math.max(...vals,1);ctx.fillStyle='#071f3d';ctx.font='16px sans-serif';labs.forEach((l,i)=>{const h=vals[i]/max*160,x=60+i*120;ctx.fillRect(x,210-h,70,h);ctx.fillText(l,x,235);ctx.fillText(vals[i],x+24,200-h)})}
@@ -126,5 +149,6 @@ function backupData(){const data={records:getRecords(),drivers:getDrivers(),admi
 function restoreData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const data=JSON.parse(r.result);if(data.records)setLocal(LS_RECORDS,data.records);if(data.drivers)setLocal(LS_DRIVERS,data.drivers);if(data.admins)setLocal(LS_ADMINS,data.admins);alert('バックアップを読み込みました');location.reload()}catch{alert('読み込みに失敗しました')}};r.readAsText(f)}
 async function enableNotification(){if(!('Notification'in window)){alert('この端末は通知非対応です');return}const p=await Notification.requestPermission();if(p!=='granted'){alert('通知が許可されませんでした');return}new Notification('BELLE HOUSE',{body:'点呼忘れ通知を有効にしました'})}
 function clearRecords(){if(confirm('点呼履歴をすべて削除しますか？')){localStorage.removeItem(LS_RECORDS);updateDashboard();renderRecords()}}
+setInterval(()=>{if(!cloudStarted)startCloudSync();updateSyncStatus();},3000);
 document.addEventListener('DOMContentLoaded',init);
 })();
