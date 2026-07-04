@@ -1,16 +1,21 @@
-BELLE HOUSE 点呼システム Ver.6.0 / クラウド同期完成版
+BELLE HOUSE 点呼システム Ver.6.1
 
-上書き方法：
-1. このZIPを解凍
-2. firebase-config.js は上書きしない
-3. それ以外の index.html / app.js / style.css / firebase-sync.js / manifest.json / sw.js を上書き
-4. VS Codeで以下を実行
-   git add .
-   git commit -m "Ver6.0 complete cloud sync"
-   git push
-5. スマホ・PCの両方で GitHub Pages のURLを開く
-   https://kiyosato1410.github.io/belle-house-tenko-v3/?v=60
+上書きするファイル:
+- index.html
+- app.js
+- firebase-sync.js
+- style.css
+- manifest.json
+- sw.js
 
-注意：
-PCで C:\Users\... のローカルファイルを開くと同期しません。
-必ずスマホとPCで同じ GitHub Pages URL を開いてください。
+上書きしないファイル:
+- firebase-config.js
+- icon-192.png / icon-512.png は既存のままでOK
+
+反映コマンド:
+git add .
+git commit -m "Ver6.1 complete sync"
+git push
+
+確認URL:
+https://kiyosato1410.github.io/belle-house-tenko-v3/?v=61

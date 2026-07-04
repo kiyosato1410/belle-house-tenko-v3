@@ -1,4 +1,3 @@
-
 (function(){
 'use strict';
 const ADMIN_ID='admin',ADMIN_PASS='1234',LS_RECORDS='belle_house_tenko_v40_records',LS_DRIVERS='belle_house_tenko_v40_drivers',LS_ADMINS='belle_house_tenko_v40_admins';

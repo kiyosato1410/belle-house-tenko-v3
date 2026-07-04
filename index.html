@@ -3,10 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BELLE HOUSE 点呼システム Ver.6.0</title>
+<title>BELLE HOUSE 点呼システム Ver.6.1</title>
 <link rel="stylesheet" href="style.css">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#071f3d">
+<link rel="apple-touch-icon" href="icon-192.png">
 </head>
 <body>
 <header class="app-header">
@@ -14,10 +15,10 @@
     <div class="brand-icon">BH</div>
     <div>
       <h1>BELLE HOUSE 点呼システム</h1>
-      <p>Ver.6.0 / クラウド同期完成版</p>
+      <p>Ver.6.1 / クラウド完全同期版</p>
     </div>
   </div>
-  <span id="syncStatus" class="sync-badge">ローカル保存</span>
+  <span id="syncStatus" class="sync-badge local">ローカル保存</span>
 </header>
 
 <main class="container">
@@ -103,7 +104,7 @@
         <button id="removePhotoBtn" type="button" class="danger">添付写真を削除</button>
       </div>
       <img id="photoPreview" class="photo-preview hidden" alt="添付写真プレビュー">
-      <p class="small">写真を添付して登録できない場合は、この削除ボタンで添付データを消してから再送信してください。</p>
+      <p class="small">写真機能を使わない場合は未選択のままで大丈夫です。</p>
 
       <label>備考</label>
       <textarea id="remarks" rows="3" placeholder="体調・車両・積荷などの補足"></textarea>
