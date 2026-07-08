@@ -1,0 +1,31 @@
+
+/* Ver.6.2 管理者コメント・ドライバー通知 */
+.comment-panel,
+.notice-panel{
+  margin-top:16px;
+  padding:16px;
+  border:1px solid #d6dee8;
+  border-radius:12px;
+  background:#f8fbff;
+}
+.comment-panel textarea{
+  width:100%;
+  box-sizing:border-box;
+  margin:8px 0;
+}
+.notice-item{
+  margin:10px 0;
+  padding:12px;
+  border-left:5px solid #071f3d;
+  background:#fff;
+  border-radius:10px;
+}
+.comment-badge{
+  display:inline-block;
+  margin:6px 0;
+  font-weight:bold;
+}
+.small-btn{
+  padding:6px 10px;
+  font-size:12px;
+}
