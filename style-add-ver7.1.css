@@ -1,0 +1,46 @@
+
+/* Ver.7.1 管理者コメント・通知 */
+.comment-panel{
+  margin-top:16px;
+  padding:16px;
+  border:1px solid #d7e3f3;
+  border-radius:14px;
+  background:#f8fbff;
+}
+.comment-panel textarea{
+  width:100%;
+  box-sizing:border-box;
+  margin:8px 0 10px;
+}
+.comment-status{
+  margin-top:8px;
+  padding:6px 8px;
+  border-radius:8px;
+  font-size:13px;
+}
+.comment-status.unread{
+  background:#fff1f2;
+  color:#b91c1c;
+  font-weight:700;
+}
+.comment-status.read{
+  background:#ecfdf5;
+  color:#047857;
+}
+.driver-notice{
+  margin:12px 0 18px;
+  padding:14px;
+  border-radius:14px;
+  background:#fff7ed;
+  border:1px solid #fed7aa;
+}
+.driver-notice h3{
+  margin:0 0 10px;
+}
+.driver-notice-item{
+  padding:10px;
+  margin:8px 0;
+  border-radius:10px;
+  background:#fff;
+  border:1px solid #ffedd5;
+}
