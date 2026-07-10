@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BELLE HOUSE 点呼システム Ver.7.1</title>
-<link rel="stylesheet" href="style.css">
+<title>BELLE HOUSE 点呼システム Ver.8.2.3</title>
+<link rel="stylesheet" href="style.css?v=822">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#071f3d">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -15,7 +15,7 @@
     <div class="brand-icon">BH</div>
     <div>
       <h1>BELLE HOUSE 点呼システム</h1>
-      <p>Ver.7.1 / Firebase同期・管理者コメント対応版</p>
+      <p>Ver.8.2.4 / 削除申請エラー修正版</p>
     </div>
   </div>
   <span id="syncStatus" class="sync-badge local">ローカル保存</span>
@@ -40,12 +40,33 @@
   <section id="driverView" class="hidden">
     <div class="card">
       <div class="section-title">
-        <h2>ドライバー点呼</h2>
+        <div>
+          <h2>ドライバーマイページ</h2>
+          <p id="currentDriver" class="driver-name"></p>
+        </div>
         <button id="driverLogoutBtn" class="secondary">ログアウト</button>
       </div>
-      <p id="currentDriver" class="driver-name"></p>
-      <div id="driverNoticeBox" class="driver-notice hidden"></div>
+      <nav class="driver-nav">
+        <button id="driverHomeBtn" class="primary">ホーム</button>
+        <button id="driverRollcallBtn" class="secondary">点呼する</button>
+        <button id="driverShiftBtn" class="secondary">シフト表</button>
+        <button id="driverHistoryBtn" class="secondary">自分の履歴</button>
+      </nav>
+    </div>
 
+    <div id="driverHomePanel" class="card">
+      <h2>今日の状況</h2>
+<div class="driver-summary-grid">
+        <div class="summary-card"><span>今日のシフト</span><strong id="myShiftStatus">未登録</strong><small id="myShiftMemo"></small></div>
+        <div class="summary-card"><span>乗務前点呼</span><strong id="myBeforeStatus">未実施</strong><small id="myBeforeTime"></small></div>
+        <div class="summary-card"><span>乗務後点呼</span><strong id="myAfterStatus">未実施</strong><small id="myAfterTime"></small></div>
+      </div>
+      <div id="driverNoticeBox" class="driver-notice hidden"></div>
+      <button id="homeStartRollcallBtn" class="success wide-action">点呼を始める</button>
+    </div>
+
+    <div id="driverRollcallPanel" class="card hidden">
+      <h2>ドライバー点呼</h2>
       <div class="grid three">
         <div><label>点呼区分</label><select id="rollcallType"><option>乗務前点呼</option><option>乗務後点呼</option><option>中間点呼</option></select></div>
         <div><label>点呼方法</label><select id="rollcallMethod"><option>対面</option><option>電話</option><option>IT点呼</option></select></div>
@@ -68,12 +89,63 @@
       <label>備考</label><textarea id="remarks" rows="3" placeholder="体調・車両・積荷などの補足"></textarea>
       <button id="submitRollcallBtn" class="success">点呼を送信</button>
     </div>
+
+    <div id="driverShiftPanel" class="card hidden">
+      <div class="section-title">
+        <div>
+          <h2>月間シフト表</h2>
+          <p class="small">閲覧専用です。シフトの編集は管理者のみ行えます。</p>
+        </div>
+        <div class="month-nav">
+          <button id="driverPrevShiftMonthBtn" class="secondary" type="button">← 前月</button>
+          <input id="driverShiftMonth" type="month">
+          <button id="driverNextShiftMonthBtn" class="secondary" type="button">翌月 →</button>
+          <button id="driverCurrentShiftMonthBtn" class="secondary" type="button">今月</button>
+        </div>
+      </div>
+
+      <div class="driver-workday-summary">
+        <div class="driver-workday-box">
+          <div class="small">選択月の稼働予定日数</div>
+          <div id="driverMonthlyWorkdays" class="driver-workday-number">0日</div>
+        </div>
+        <div class="driver-workday-box">
+          <div class="small">選択月の点呼実施日数</div>
+          <div id="driverMonthlyAttendanceDays" class="driver-workday-number">0日</div>
+        </div>
+      </div>
+
+      <div class="shift-calendar-wrap">
+        <table id="driverMonthlyShiftTable" class="monthly-shift-table driver-readonly-shift">
+          <thead id="driverMonthlyShiftHead"></thead>
+          <tbody id="driverMonthlyShiftBody"></tbody>
+        </table>
+      </div>
+
+      <div class="shift-legend">
+        <span><i class="legend-normal"></i>担当者あり</span>
+        <span><i class="legend-mine"></i>自分の担当</span>
+        <span><i class="legend-sunday"></i>日曜日</span>
+        <span><i class="legend-saturday"></i>土曜日</span>
+        <span><i class="legend-closed"></i>休止</span>
+      </div>
+    </div>
+
+    <div id="driverHistoryPanel" class="card hidden">
+      <div class="section-title"><h2>自分の点呼履歴</h2><span id="myHistoryCount" class="small"></span></div>
+      <div class="grid three">
+        <div><label>表示期間</label><select id="myHistoryFilter"><option value="month">今月</option><option value="today">今日</option><option value="week">直近7日</option><option value="all">全期間</option></select></div>
+        <div><label>開始日</label><input id="myHistoryStart" type="date"></div>
+        <div><label>終了日</label><input id="myHistoryEnd" type="date"></div>
+      </div>
+      <div class="table-wrap"><table class="driver-history-table"><thead><tr><th>日時</th><th>区分</th><th>判定</th><th>車両</th><th>管理者コメント</th><th>操作</th></tr></thead><tbody id="myHistoryBody"></tbody></table></div>
+    </div>
   </section>
 
   <section id="adminView" class="hidden">
     <div class="card">
       <div class="section-title"><h2>管理者ホーム</h2><button id="adminLogoutBtn" class="secondary">ログアウト</button></div>
-      <nav class="admin-nav"><button data-tab="dashboard">ダッシュボード</button><button data-tab="records">点呼記録</button><button data-tab="drivers">ドライバー管理</button><button data-tab="admins">管理者管理</button></nav>
+      <nav class="admin-nav"><button data-tab="dashboard">ダッシュボード</button><button data-tab="records">点呼記録</button><button data-tab="drivers">ドライバー管理</button><button data-tab="shifts">シフト管理</button><button data-tab="deleteRequests">削除申請</button><button data-tab="admins">管理者管理</button></nav>
     </div>
 
     <div id="dashboardTab" class="admin-tab card">
@@ -102,6 +174,50 @@
       <div class="table-wrap"><table><thead><tr><th>名前</th><th>電話</th><th>免許期限</th><th>車両</th><th>メモ</th><th>登録日</th><th>操作</th></tr></thead><tbody id="driversBody"></tbody></table></div>
     </div>
 
+
+    <div id="shiftsTab" class="admin-tab card hidden">
+      <div class="section-title">
+        <div>
+          <h2>月間配車シフト</h2>
+          <p class="small">コースごとに担当者を選ぶと、その場で保存されます。</p>
+        </div>
+        <div class="month-nav">
+          <button id="prevShiftMonthBtn" class="secondary" type="button">← 前月</button>
+          <input id="shiftMonth" type="month">
+          <button id="nextShiftMonthBtn" class="secondary" type="button">翌月 →</button>
+          <button id="currentShiftMonthBtn" class="secondary" type="button">今月</button>
+        </div>
+      </div>
+
+      <div class="admin-actions">
+        <button id="copyPrevMonthBtn" class="success" type="button">前月の配車をコピー</button>
+        <span id="shiftSaveStatus" class="small">セルを変更すると自動保存されます</span>
+      </div>
+
+      <div class="shift-calendar-wrap">
+        <table id="monthlyShiftTable" class="monthly-shift-table">
+          <thead id="monthlyShiftHead"></thead>
+          <tbody id="monthlyShiftBody"></tbody>
+        </table>
+      </div>
+
+      <div class="shift-legend">
+        <span><i class="legend-normal"></i>担当者あり</span>
+        <span><i class="legend-sunday"></i>日曜日</span>
+        <span><i class="legend-saturday"></i>土曜日</span>
+        <span><i class="legend-closed"></i>休止</span>
+      </div>
+
+      <h3>月間稼働数</h3>
+      <div id="monthlyShiftCounts" class="shift-counts"></div>
+    </div>
+
+    <div id="deleteRequestsTab" class="admin-tab card hidden">
+      <div class="section-title"><h2>点呼記録の削除申請</h2><span id="deleteRequestCount" class="small"></span></div>
+      <p class="small">承認すると記録は完全消去せず「削除済み」として監査履歴を残します。</p>
+      <div class="table-wrap"><table><thead><tr><th>申請日時</th><th>ドライバー</th><th>対象点呼</th><th>理由</th><th>状態</th><th>操作</th></tr></thead><tbody id="deleteRequestsBody"></tbody></table></div>
+    </div>
+
     <div id="adminsTab" class="admin-tab card hidden">
       <h2>管理者管理</h2>
       <div class="grid three"><div><label>管理者ID</label><input id="newAdminId"></div><div><label>パスワード</label><input id="newAdminPass" type="password"></div><div><label>&nbsp;</label><button id="addAdminBtn" class="success">管理者追加</button></div></div>
@@ -111,7 +227,7 @@
 </main>
 
 <script src="firebase-config.js"></script>
-<script type="module" src="firebase-sync.js"></script>
-<script src="app.js"></script>
+<script type="module" src="firebase-sync.js?v=9301"></script>
+<script src="app.js?v=9301"></script>
 </body>
 </html>

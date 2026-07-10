@@ -44,3 +44,81 @@
   background:#fff;
   border:1px solid #ffedd5;
 }
+
+/* Ver.8.0 シフト管理 */
+.shift-badge{display:inline-block;padding:5px 10px;border-radius:999px;font-weight:800;font-size:13px;background:#eef4fb;color:#071f3d}
+.shift-出勤{background:#dcfce7;color:#166534}.shift-休み{background:#f1f5f9;color:#475569}.shift-有休{background:#e0e7ff;color:#3730a3}.shift-応援{background:#fef3c7;color:#92400e}.shift-その他{background:#f3e8ff;color:#6b21a8}
+
+/* Ver.8.1 ドライバーマイページ */
+.driver-nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.driver-summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0}
+.summary-card{background:#f8fafc;border:1px solid var(--line);border-radius:16px;padding:16px;min-height:120px;display:flex;flex-direction:column;gap:8px}
+.summary-card span{font-size:13px;color:var(--muted);font-weight:700}
+.summary-card strong{font-size:24px;color:var(--navy)}
+.summary-card small{color:var(--muted);line-height:1.5}
+.home-ok{color:var(--ok)!important}
+.home-warn{color:#b45309!important}
+.home-danger{color:var(--ng)!important}
+.home-neutral{color:var(--navy)!important}
+.wide-action{width:100%;font-size:17px;margin-top:8px}
+.driver-history-table{min-width:720px}
+@media(max-width:760px){.driver-summary-grid{grid-template-columns:1fr}.driver-nav button{width:calc(33.333% - 6px);padding:10px 6px;font-size:13px}.summary-card{min-height:auto}.summary-card strong{font-size:22px}}
+
+/* Ver.8.2 二重送信防止・削除申請 */
+.request-pending{display:inline-block;padding:5px 9px;border-radius:999px;background:#fef3c7;color:#92400e;font-weight:800}
+.request-approved{display:inline-block;padding:5px 9px;border-radius:999px;background:#dcfce7;color:#166534;font-weight:800}
+.request-rejected{display:inline-block;padding:5px 9px;border-radius:999px;background:#fee2e2;color:#991b1b;font-weight:800}
+
+/* Ver.9.0 月間配車シフト */
+.month-nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.month-nav input{width:auto;min-width:155px}.shift-calendar-wrap{overflow:auto;border:1px solid var(--line);border-radius:14px;background:#fff}.monthly-shift-table{border-collapse:separate;border-spacing:0;min-width:max-content;width:auto}.monthly-shift-table th,.monthly-shift-table td{padding:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);text-align:center}.monthly-shift-table thead th{position:sticky;top:0;z-index:4;background:#edf3fa}.monthly-shift-table .course-head{left:0;z-index:6;min-width:145px;padding:10px}.monthly-shift-table .course-name{position:sticky;left:0;z-index:3;min-width:145px;padding:10px 8px;text-align:left;background:#f8fafc;white-space:nowrap}.day-head{min-width:62px;padding:6px!important}.day-head span{display:block;font-size:15px}.day-head small{display:block;font-weight:700}.day-head.sun,.shift-cell.sun{background:#fff1ed}.day-head.sat,.shift-cell.sat{background:#eef6ff}.shift-cell{height:48px;min-width:62px;background:#fff}.shift-cell select{width:62px;min-width:62px;height:47px;padding:3px;border:0;border-radius:0;font-size:12px;text-align:center;background:transparent;color:var(--text)}.shift-cell.assigned select{font-weight:800;color:#071f3d}.shift-cell.closed{background:repeating-linear-gradient(35deg,#f3f4f6,#f3f4f6 8px,#cbd5e1 9px,#cbd5e1 11px)}.shift-legend{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0;font-size:13px}.shift-legend span{display:flex;align-items:center;gap:6px}.shift-legend i{width:18px;height:18px;border:1px solid var(--line);border-radius:4px}.legend-normal{background:#fff}.legend-sunday{background:#fff1ed}.legend-saturday{background:#eef6ff}.legend-closed{background:repeating-linear-gradient(35deg,#f3f4f6,#f3f4f6 5px,#94a3b8 6px,#94a3b8 8px)}.shift-counts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}.shift-count-card{display:flex;justify-content:space-between;align-items:center;padding:12px;border:1px solid var(--line);border-radius:12px;background:#f8fafc}.shift-count-card span{font-size:22px;font-weight:900;color:var(--navy)}#shiftSaveStatus.saved{color:var(--ok);font-weight:800}@media(max-width:760px){.month-nav{width:100%}.month-nav button{width:auto;flex:1}.month-nav input{width:100%}.monthly-shift-table .course-head,.monthly-shift-table .course-name{min-width:115px}.shift-cell,.day-head{min-width:58px}.shift-cell select{width:58px;min-width:58px;font-size:11px}}
+
+/* Ver.9.1 ドライバー用・閲覧専用シフト表 */
+.driver-readonly-shift .shift-cell.readonly{
+  height:48px;
+  min-width:62px;
+  padding:4px 3px;
+  font-size:12px;
+  font-weight:700;
+  vertical-align:middle;
+}
+.driver-readonly-shift .shift-cell.readonly span{
+  display:block;
+  max-width:60px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.driver-readonly-shift .shift-cell.mine{
+  background:#dcfce7 !important;
+  box-shadow:inset 0 0 0 2px #16a34a;
+  color:#14532d;
+}
+.legend-mine{background:#dcfce7;border-color:#16a34a!important}
+@media(max-width:760px){
+  .driver-nav button{width:calc(50% - 4px)}
+  .driver-readonly-shift .shift-cell.readonly{min-width:58px;font-size:11px}
+}
+
+/* Ver.9.2 ドライバー稼働日数表示 */
+.driver-workday-summary{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+  margin:0 0 14px;
+}
+.driver-workday-box{
+  background:#f8fafc;
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:14px;
+}
+.driver-workday-number{
+  margin-top:4px;
+  font-size:28px;
+  line-height:1.1;
+  font-weight:900;
+  color:var(--navy);
+}
+@media(max-width:760px){
+  .driver-workday-summary{grid-template-columns:1fr}
+}

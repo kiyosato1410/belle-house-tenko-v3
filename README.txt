@@ -1,21 +1,12 @@
-BELLE HOUSE 点呼システム Ver.6.1
+BELLE HOUSE 点呼システム Ver.8.0 Phase 1
 
-上書きするファイル:
-- index.html
-- app.js
-- firebase-sync.js
-- style.css
-- manifest.json
-- sw.js
+追加機能:
+- シフト管理（出勤・休み・有休・応援・その他）
+- Firestore shifts同期
+- 出勤予定者だけを未点呼判定
+- シフト未登録者を別表示
 
-上書きしないファイル:
-- firebase-config.js
-- icon-192.png / icon-512.png は既存のままでOK
+上書き対象:
+index.html / app.js / firebase-sync.js / style.css / sw.js
 
-反映コマンド:
-git add .
-git commit -m "Ver6.1 complete sync"
-git push
-
-確認URL:
-https://kiyosato1410.github.io/belle-house-tenko-v3/?v=61
+重要: firebase-config.js とアイコンは既存のままでも問題ありません。

@@ -58,6 +58,22 @@ try {
         );
       },
 
+      onShifts(cb) {
+        return onSnapshot(
+          collection(db, "shifts"),
+          snap => cb(mapSnap(snap)),
+          err => { console.error("shifts sync error", err); emit("error"); }
+        );
+      },
+
+      onDeleteRequests(cb) {
+        return onSnapshot(
+          collection(db, "deleteRequests"),
+          snap => cb(mapSnap(snap)),
+          err => { console.error("delete requests sync error", err); emit("error"); }
+        );
+      },
+
       onAdmins(cb) {
         return onSnapshot(
           collection(db, "admins"),
@@ -74,12 +90,24 @@ try {
         return setDoc(doc(db, "drivers", String(driver.id)), driver, { merge: true });
       },
 
+      saveShift(shift) {
+        return setDoc(doc(db, "shifts", String(shift.id)), shift, { merge: true });
+      },
+
+      saveDeleteRequest(request) {
+        return setDoc(doc(db, "deleteRequests", String(request.id)), request, { merge: true });
+      },
+
       saveAdmin(admin) {
         return setDoc(doc(db, "admins", String(admin.id || admin.name)), admin, { merge: true });
       },
 
       deleteDriver(id) {
         return deleteDoc(doc(db, "drivers", String(id)));
+      },
+
+      deleteShift(id) {
+        return deleteDoc(doc(db, "shifts", String(id)));
       },
 
       deleteAdmin(id) {

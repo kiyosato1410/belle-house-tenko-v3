@@ -1,12 +1,20 @@
 {
   "name": "BELLE HOUSE 点呼システム",
   "short_name": "BH点呼",
-  "start_url": "./?v=61",
+  "start_url": "./?v=9301",
   "display": "standalone",
   "background_color": "#f4f7fb",
   "theme_color": "#071f3d",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
   ]
 }
