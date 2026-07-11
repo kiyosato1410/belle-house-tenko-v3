@@ -1,7 +1,7 @@
 (function(){
 'use strict';
 const ADMIN_ID='admin',ADMIN_PASS='1234',LS_RECORDS='belle_house_tenko_v40_records',LS_DRIVERS='belle_house_tenko_v40_drivers',LS_ADMINS='belle_house_tenko_v40_admins',LS_SHIFTS='belle_house_tenko_v80_shifts',LS_DELETE_REQUESTS='belle_house_tenko_v82_delete_requests';
-const APP_VERSION='Ver.9.3';
+const APP_VERSION='Ver.9.4';
 let currentUser='',gpsData=null;
 let cloudStarted=false;
 let cloudRetryCount=0;
@@ -39,7 +39,61 @@ function updateSyncStatus(){
   badge.title=cloud?'Firebaseに接続しています':'firebase-config.js / firebase-sync.js を確認してください';
   badge.className='sync-badge '+(cloud?'cloud':'local');
 }
-function sortByNewest(a){return [...(a||[])].sort((x,y)=>String(y.createdAt||y.time||y.id||'').localeCompare(String(x.createdAt||x.time||x.id||'')))}
+function getSortTimestamp(item){
+  const value=item||{};
+
+  const timestampLike=[
+    value.updatedAt,
+    value.processedAt,
+    value.createdAt,
+    value.time
+  ];
+
+  for(const raw of timestampLike){
+    if(raw==null||raw==='')continue;
+
+    if(typeof raw==='number'&&Number.isFinite(raw))return raw;
+    if(typeof raw==='object'){
+      if(typeof raw.toMillis==='function'){
+        const millis=raw.toMillis();
+        if(Number.isFinite(millis))return millis;
+      }
+      if(Number.isFinite(raw.seconds))return raw.seconds*1000;
+    }
+
+    const text=String(raw).trim();
+
+    // 「2026/7/12 0:05:04」「2026-07-12 00:05:04」の両方に対応
+    const match=text.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+    if(match){
+      const [,year,month,day,hour='0',minute='0',second='0']=match;
+      return new Date(
+        Number(year),
+        Number(month)-1,
+        Number(day),
+        Number(hour),
+        Number(minute),
+        Number(second)
+      ).getTime();
+    }
+
+    const parsed=Date.parse(text);
+    if(Number.isFinite(parsed))return parsed;
+  }
+
+  // 点呼記録などのIDは Date.now() なので、最後の安全な並び替え材料として使用
+  const numericId=Number(value.id);
+  if(Number.isFinite(numericId))return numericId;
+
+  return 0;
+}
+function sortByNewest(items){
+  return [...(items||[])].sort((a,b)=>{
+    const diff=getSortTimestamp(b)-getSortTimestamp(a);
+    if(diff!==0)return diff;
+    return String(b?.id||'').localeCompare(String(a?.id||''));
+  });
+}
 function refreshCurrentViews(){
   updateDashboard();
   renderDriverOptions();
@@ -220,13 +274,13 @@ async function submitRollcall(){const selectedType=$('rollcallType')?.value||'';
 function showAdminTab(tab){document.querySelectorAll('.admin-tab').forEach(e=>e.classList.add('hidden'));$(`${tab}Tab`)?.classList.remove('hidden');if(tab==='dashboard')updateDashboard();if(tab==='records'){enhanceSearchUI();renderRecords()}if(tab==='drivers')renderDrivers();if(tab==='shifts'){initShiftTab();renderMonthlyShift()}if(tab==='admins')renderAdmins();if(tab==='deleteRequests')renderDeleteRequests()}
 function updateDashboard(){const r=getRecords(),d=getDrivers(),s=getShifts();if($('statToday'))$('statToday').textContent=r.filter(x=>x.date===todayKey()).length;if($('statNeedCheck'))$('statNeedCheck').textContent=r.filter(x=>!x.ok).length;if($('statDrivers'))$('statDrivers').textContent=d.length;if($('statMonth'))$('statMonth').textContent=r.filter(x=>x.month===monthKey()).length;const today=isoDate();const scheduledNames=[...new Set(s.filter(x=>x.date===today&&x.status==='出勤'&&x.driverName).map(x=>x.driverName))];const names=new Set(r.filter(x=>x.isoDate===today||x.date===todayKey()).map(x=>x.driver||x.name));const miss=scheduledNames.filter(name=>!names.has(name));const unregistered=d.filter(x=>!scheduledNames.includes(x.name)).map(x=>x.name);if($('missingToday'))$('missingToday').innerHTML=miss.length?`<strong class="status-ng">未点呼：${miss.map(esc).join('、')}</strong>${unregistered.length?`<br><span class="small">シフト未登録：${unregistered.map(esc).join('、')}</span>`:''}`:`未点呼者はいません${unregistered.length?`<br><span class="small">シフト未登録：${unregistered.map(esc).join('、')}</span>`:''}`;drawChart()}
 function drawChart(){const c=$('summaryChart');if(!c)return;const ctx=c.getContext('2d'),r=getRecords();ctx.clearRect(0,0,c.width,c.height);const vals=[r.filter(x=>x.date===todayKey()).length,r.filter(x=>x.month===monthKey()).length,r.filter(x=>!x.ok).length,getDrivers().length],labs=['今日','今月','要確認','登録'],max=Math.max(...vals,1);ctx.fillStyle='#071f3d';ctx.font='16px sans-serif';labs.forEach((l,i)=>{const h=vals[i]/max*160,x=60+i*120;ctx.fillRect(x,210-h,70,h);ctx.fillText(l,x,235);ctx.fillText(vals[i],x+24,200-h)})}
-function filteredRecords(){let r=getRecords();const filter=$('recordFilter')?.value||'all',free=$('driverSearch')?.value.trim()||'',oldDate=$('dateSearch')?.value||'',driver=$('driverSelectSearch')?.value||'',start=$('startDateSearch')?.value||'',end=$('endDateSearch')?.value||'',type=$('typeSearch')?.value||'',status=$('statusSearch')?.value||'',course=$('courseSearch')?.value||'';if(filter==='today')r=r.filter(x=>x.date===todayKey());if(filter==='need')r=r.filter(x=>!x.ok);if(filter==='month')r=r.filter(x=>x.month===monthKey());if(driver)r=r.filter(x=>(x.driver||x.name||'')===driver);if(start)r=r.filter(x=>(x.isoDate||'')>=start);if(end)r=r.filter(x=>(x.isoDate||'')<=end);if(type)r=r.filter(x=>x.type===type);if(status==='ok')r=r.filter(x=>!!x.ok);if(status==='need')r=r.filter(x=>!x.ok);if(course)r=r.filter(x=>(x.course||x.deliveryNote||x.remarks||'').includes(course));if(free)r=r.filter(x=>[x.driver,x.name,x.vehicleNo,x.remarks,x.deliveryNote,x.instruction,x.course].some(v=>String(v||'').includes(free)));if(oldDate)r=r.filter(x=>x.isoDate===oldDate);return r}
+function filteredRecords(){let r=getRecords();const filter=$('recordFilter')?.value||'all',free=$('driverSearch')?.value.trim()||'',oldDate=$('dateSearch')?.value||'',driver=$('driverSelectSearch')?.value||'',start=$('startDateSearch')?.value||'',end=$('endDateSearch')?.value||'',type=$('typeSearch')?.value||'',status=$('statusSearch')?.value||'',course=$('courseSearch')?.value||'';if(filter==='today')r=r.filter(x=>x.date===todayKey());if(filter==='need')r=r.filter(x=>!x.ok);if(filter==='month')r=r.filter(x=>x.month===monthKey());if(driver)r=r.filter(x=>(x.driver||x.name||'')===driver);if(start)r=r.filter(x=>(x.isoDate||'')>=start);if(end)r=r.filter(x=>(x.isoDate||'')<=end);if(type)r=r.filter(x=>x.type===type);if(status==='ok')r=r.filter(x=>!!x.ok);if(status==='need')r=r.filter(x=>!x.ok);if(course)r=r.filter(x=>(x.course||x.deliveryNote||x.remarks||'').includes(course));if(free)r=r.filter(x=>[x.driver,x.name,x.vehicleNo,x.remarks,x.deliveryNote,x.instruction,x.course].some(v=>String(v||'').includes(free)));if(oldDate)r=r.filter(x=>x.isoDate===oldDate);return sortByNewest(r)}
 function renderRecords(){const body=$('recordsBody');if(!body)return;const r=filteredRecords();if(!r.length){body.innerHTML='<tr><td colspan="9">履歴はありません</td></tr>';return}body.innerHTML=r.map(x=>{const checks=CHECK_ITEMS.map(([id,l])=>`${x.checks?.[id]?'✅':'❌'}${esc(l)}`).join('<br>');const gps=x.gps?`<a class="maplink" target="_blank" href="https://www.google.com/maps?q=${x.gps.lat},${x.gps.lng}">地図</a>`:'';return `<tr><td class="${x.ok?'status-ok':'status-ng'}">${x.ok?'OK':'要確認'}</td><td>${esc(x.time)}</td><td>${esc(x.type)}<br>${esc(x.course||'')}</td><td>${esc(x.driver||x.name)}</td><td>${esc(x.vehicleNo)}<br>${esc(x.odometer)}</td><td>${checks}<br>ALC:${esc(x.alcoholValue||x.alcohol)}<br>睡眠:${esc(x.sleepHours)}</td><td>${gps}</td><td>${x.photo?`<img class="photo" src="${x.photo}">`:''}</td><td>${esc(x.deliveryNote)}<br>${esc(x.remarks)}<br>${x.adminComment?`<div class="comment-status ${x.commentRead?'read':'unread'}">💬 ${x.commentRead?'既読':'未読'}：${esc(x.adminComment)}</div>`:'コメントなし'}<br><button class="secondary" data-comment-id="${esc(x.id)}">コメント</button></td></tr>`}).join('')}
 async function addDriver(){const name=$('newDriverName').value.trim();if(!name){alert('ドライバー名を入力してください');return}const d={id:String(Date.now()),name,tel:$('newDriverTel').value.trim(),license:$('newDriverLicense').value,vehicle:$('newDriverVehicle').value.trim(),memo:$('newDriverMemo').value.trim(),created:nowText(),createdAt:nowText()};const a=getDrivers().filter(x=>x.id!==d.id);a.unshift(d);setLocal(LS_DRIVERS,a);await cloudSave('driver',d);['newDriverName','newDriverTel','newDriverLicense','newDriverVehicle','newDriverMemo'].forEach(id=>{if($(id))$(id).value=''});renderDrivers();renderDriverOptions();updateDashboard()}
-function renderDrivers(){const body=$('driversBody');if(!body)return;const d=getDrivers();if(!d.length){body.innerHTML='<tr><td colspan="7">登録ドライバーはありません</td></tr>';return}body.innerHTML=d.map((x,i)=>`<tr><td>${esc(x.name)}</td><td>${esc(x.tel)}</td><td>${esc(x.license)}</td><td>${esc(x.vehicle)}</td><td>${esc(x.memo)}</td><td>${esc(x.created)}</td><td><button class="danger" data-delete-driver="${i}">削除</button></td></tr>`).join('')}
+function renderDrivers(){const body=$('driversBody');if(!body)return;const d=sortByNewest(getDrivers());if(!d.length){body.innerHTML='<tr><td colspan="7">登録ドライバーはありません</td></tr>';return}body.innerHTML=d.map((x,i)=>`<tr><td>${esc(x.name)}</td><td>${esc(x.tel)}</td><td>${esc(x.license)}</td><td>${esc(x.vehicle)}</td><td>${esc(x.memo)}</td><td>${esc(x.created)}</td><td><button class="danger" data-delete-driver="${i}">削除</button></td></tr>`).join('')}
 async function deleteDriver(i){if(!confirm('このドライバーを削除しますか？'))return;const a=getDrivers();const d=a[i];a.splice(i,1);setLocal(LS_DRIVERS,a);if(d&&d.id)await cloudDelete('driver',d.id);renderDrivers();renderDriverOptions();updateDashboard()}
 async function addAdmin(){const name=$('newAdminId')?.value.trim()||'',pass=$('newAdminPass')?.value.trim()||'';if(!name||!pass){alert('管理者IDとパスワードを入力してください');return}const admin={id:name,name,pass,created:nowText(),createdAt:nowText()};const a=getAdmins().filter(x=>x.name!==name);a.push(admin);setLocal(LS_ADMINS,a);await cloudSave('admin',admin);if($('newAdminId'))$('newAdminId').value='';if($('newAdminPass'))$('newAdminPass').value='';renderAdmins()}
-function renderAdmins(){const body=$('adminsBody');if(!body)return;const a=[{id:'admin',name:'admin',created:'初期管理者'},...getAdmins()];body.innerHTML=a.map((x,i)=>`<tr><td>${esc(x.name)}</td><td>${esc(x.created)}</td><td>${x.id==='admin'?'削除不可':`<button class="danger" data-delete-admin="${i-1}">削除</button>`}</td></tr>`).join('')}
+function renderAdmins(){const body=$('adminsBody');if(!body)return;const a=[{id:'admin',name:'admin',created:'初期管理者'},...sortByNewest(getAdmins())];body.innerHTML=a.map((x,i)=>`<tr><td>${esc(x.name)}</td><td>${esc(x.created)}</td><td>${x.id==='admin'?'削除不可':`<button class="danger" data-delete-admin="${i-1}">削除</button>`}</td></tr>`).join('')}
 async function deleteAdmin(i){const a=getAdmins();const admin=a[i];a.splice(i,1);setLocal(LS_ADMINS,a);if(admin&&admin.id)await cloudDelete('admin',admin.id);renderAdmins()}
 
 function initShiftTab(){
@@ -466,7 +520,7 @@ async function saveAdminComment(){
 function renderDriverComments(){
   const box = $('driverNoticeBox');
   if(!box) return;
-  const records = getRecords().filter(r => (r.driver || r.name) === currentUser && r.adminComment && !r.commentRead);
+  const records = sortByNewest(getRecords().filter(r => (r.driver || r.name) === currentUser && r.adminComment && !r.commentRead));
   if(!records.length){
     box.classList.add('hidden');
     box.innerHTML = '';
