@@ -3,11 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BELLE HOUSE 点呼システム Ver.9.4</title>
+<title>BELLE HOUSE 点呼システム Ver.9.5</title>
 <link rel="stylesheet" href="style.css?v=822">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#071f3d">
 <link rel="apple-touch-icon" href="icon-192.png">
+
+<style>
+.notices-list{display:grid;gap:12px}.notice-card{border:1px solid #d7dee8;border-radius:12px;padding:14px;background:#fff}.notice-card.urgent,.driver-notice-item.urgent{border:2px solid #c62828;background:#fff5f5}.notice-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.notice-message{line-height:1.65}.notice-read-list{display:flex;flex-wrap:wrap;gap:8px 14px;padding-top:8px}.driver-notice-item{border:1px solid #d7dee8;border-radius:10px;padding:12px;margin:10px 0;background:#fff}
+</style>
 </head>
 <body>
 <header class="app-header">
@@ -15,7 +19,7 @@
     <div class="brand-icon">BH</div>
     <div>
       <h1>BELLE HOUSE 点呼システム</h1>
-      <p>Ver.9.4 / 点呼記録・各一覧の最新順表示修正版</p>
+      <p>Ver.9.5 / 全員・個別連絡事項機能追加版</p>
     </div>
   </div>
   <span id="syncStatus" class="sync-badge local">ローカル保存</span>
@@ -145,7 +149,7 @@
   <section id="adminView" class="hidden">
     <div class="card">
       <div class="section-title"><h2>管理者ホーム</h2><button id="adminLogoutBtn" class="secondary">ログアウト</button></div>
-      <nav class="admin-nav"><button data-tab="dashboard">ダッシュボード</button><button data-tab="records">点呼記録</button><button data-tab="drivers">ドライバー管理</button><button data-tab="shifts">シフト管理</button><button data-tab="deleteRequests">削除申請</button><button data-tab="admins">管理者管理</button></nav>
+      <nav class="admin-nav"><button data-tab="dashboard">ダッシュボード</button><button data-tab="records">点呼記録</button><button data-tab="drivers">ドライバー管理</button><button data-tab="shifts">シフト管理</button><button data-tab="notices">連絡事項</button><button data-tab="deleteRequests">削除申請</button><button data-tab="admins">管理者管理</button></nav>
     </div>
 
     <div id="dashboardTab" class="admin-tab card">
@@ -212,6 +216,19 @@
       <div id="monthlyShiftCounts" class="shift-counts"></div>
     </div>
 
+
+    <div id="noticesTab" class="admin-tab card hidden">
+      <div class="section-title"><div><h2>管理者からの連絡事項</h2><p class="small">点呼記録とは別に、全員または個別のドライバーへ連絡できます。</p></div><span id="adminNoticeCount" class="small"></span></div>
+      <div class="grid three">
+        <div><label>宛先</label><select id="noticeTarget"><option value="__ALL__">全員へ連絡</option></select></div>
+        <div><label>重要度</label><select id="noticePriority"><option value="normal">通常</option><option value="urgent">重要・緊急</option></select></div>
+        <div><label>件名</label><input id="noticeSubject" placeholder="例：明日の集合時間"></div>
+      </div>
+      <label>連絡内容</label><textarea id="noticeMessage" rows="5" placeholder="全員または選択したドライバーへの連絡内容を入力"></textarea>
+      <button id="sendNoticeBtn" type="button" class="success">連絡事項を送信</button>
+      <h3>送信履歴・確認状況</h3><div id="adminNoticesList" class="notices-list"></div>
+    </div>
+
     <div id="deleteRequestsTab" class="admin-tab card hidden">
       <div class="section-title"><h2>点呼記録の削除申請</h2><span id="deleteRequestCount" class="small"></span></div>
       <p class="small">承認すると記録は完全消去せず「削除済み」として監査履歴を残します。</p>
@@ -227,7 +244,7 @@
 </main>
 
 <script src="firebase-config.js"></script>
-<script type="module" src="firebase-sync.js?v=9301"></script>
-<script src="app.js?v=9401"></script>
+<script type="module" src="firebase-sync.js?v=9501"></script>
+<script src="app.js?v=9501"></script>
 </body>
 </html>

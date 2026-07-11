@@ -1,7 +1,7 @@
 (function(){
 'use strict';
-const ADMIN_ID='admin',ADMIN_PASS='1234',LS_RECORDS='belle_house_tenko_v40_records',LS_DRIVERS='belle_house_tenko_v40_drivers',LS_ADMINS='belle_house_tenko_v40_admins',LS_SHIFTS='belle_house_tenko_v80_shifts',LS_DELETE_REQUESTS='belle_house_tenko_v82_delete_requests';
-const APP_VERSION='Ver.9.4';
+const ADMIN_ID='admin',ADMIN_PASS='1234',LS_RECORDS='belle_house_tenko_v40_records',LS_DRIVERS='belle_house_tenko_v40_drivers',LS_ADMINS='belle_house_tenko_v40_admins',LS_SHIFTS='belle_house_tenko_v80_shifts',LS_DELETE_REQUESTS='belle_house_tenko_v82_delete_requests',LS_NOTICES='belle_house_tenko_v95_notices';
+const APP_VERSION='Ver.9.5';
 let currentUser='',gpsData=null;
 let cloudStarted=false;
 let cloudRetryCount=0;
@@ -14,7 +14,7 @@ const CHECK_ITEMS=[['alcDevice','アルコール検知器を使用した'],['alc
 const $=id=>document.getElementById(id);const nowText=()=>new Date().toLocaleString('ja-JP',{hour12:false});const todayKey=()=>new Date().toLocaleDateString('ja-JP');const isoDate=()=>new Date().toISOString().slice(0,10);const monthKey=()=>new Date().toISOString().slice(0,7);
 const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 const getLocal=k=>JSON.parse(localStorage.getItem(k)||'[]');const setLocal=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
-const getRecords=()=>getLocal(LS_RECORDS);const getDrivers=()=>getLocal(LS_DRIVERS);const getAdmins=()=>getLocal(LS_ADMINS);const getDeleteRequests=()=>getLocal(LS_DELETE_REQUESTS);const getShifts=()=>getLocal(LS_SHIFTS);
+const getRecords=()=>getLocal(LS_RECORDS);const getDrivers=()=>getLocal(LS_DRIVERS);const getAdmins=()=>getLocal(LS_ADMINS);const getDeleteRequests=()=>getLocal(LS_DELETE_REQUESTS);const getShifts=()=>getLocal(LS_SHIFTS);const getNotices=()=>getLocal(LS_NOTICES);
 function init(){
   updateSyncStatus();
   renderCheckList();
@@ -41,57 +41,29 @@ function updateSyncStatus(){
 }
 function getSortTimestamp(item){
   const value=item||{};
-
-  const timestampLike=[
-    value.updatedAt,
-    value.processedAt,
-    value.createdAt,
-    value.time
-  ];
-
-  for(const raw of timestampLike){
+  for(const raw of [value.updatedAt,value.processedAt,value.createdAt,value.time]){
     if(raw==null||raw==='')continue;
-
     if(typeof raw==='number'&&Number.isFinite(raw))return raw;
     if(typeof raw==='object'){
-      if(typeof raw.toMillis==='function'){
-        const millis=raw.toMillis();
-        if(Number.isFinite(millis))return millis;
-      }
+      if(typeof raw.toMillis==='function'){const millis=raw.toMillis();if(Number.isFinite(millis))return millis}
       if(Number.isFinite(raw.seconds))return raw.seconds*1000;
     }
-
     const text=String(raw).trim();
-
-    // 「2026/7/12 0:05:04」「2026-07-12 00:05:04」の両方に対応
     const match=text.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
     if(match){
       const [,year,month,day,hour='0',minute='0',second='0']=match;
-      return new Date(
-        Number(year),
-        Number(month)-1,
-        Number(day),
-        Number(hour),
-        Number(minute),
-        Number(second)
-      ).getTime();
+      return new Date(Number(year),Number(month)-1,Number(day),Number(hour),Number(minute),Number(second)).getTime();
     }
-
     const parsed=Date.parse(text);
     if(Number.isFinite(parsed))return parsed;
   }
-
-  // 点呼記録などのIDは Date.now() なので、最後の安全な並び替え材料として使用
   const numericId=Number(value.id);
-  if(Number.isFinite(numericId))return numericId;
-
-  return 0;
+  return Number.isFinite(numericId)?numericId:0;
 }
 function sortByNewest(items){
   return [...(items||[])].sort((a,b)=>{
     const diff=getSortTimestamp(b)-getSortTimestamp(a);
-    if(diff!==0)return diff;
-    return String(b?.id||'').localeCompare(String(a?.id||''));
+    return diff!==0?diff:String(b?.id||'').localeCompare(String(a?.id||''));
   });
 }
 function refreshCurrentViews(){
@@ -103,7 +75,9 @@ function refreshCurrentViews(){
   renderShifts();
   renderDeleteRequests();
   renderMonthlyShift();
-  if(currentUser){renderDriverHome();renderMyHistory();renderDriverMonthlyShift();}
+  renderAdminNoticeDriverOptions();
+  renderAdminNotices();
+  if(currentUser){renderDriverHome();renderMyHistory();renderDriverMonthlyShift();renderDriverNotices();}
 }
 function startCloudSync(){
   const cloud=window.BELLE_CLOUD;
@@ -119,6 +93,7 @@ function startCloudSync(){
   if(cloud.onAdmins){cloudUnsubs.push(cloud.onAdmins(admins=>{setLocal(LS_ADMINS,sortByNewest(admins));refreshCurrentViews();}));}
   if(cloud.onDeleteRequests){cloudUnsubs.push(cloud.onDeleteRequests(items=>{setLocal(LS_DELETE_REQUESTS,sortByNewest(items));refreshCurrentViews();}));}
   if(cloud.onShifts){cloudUnsubs.push(cloud.onShifts(shifts=>{setLocal(LS_SHIFTS,sortByNewest(shifts));refreshCurrentViews();}));}
+  if(cloud.onNotices){cloudUnsubs.push(cloud.onNotices(items=>{setLocal(LS_NOTICES,sortByNewest(items));refreshCurrentViews();}));}
   uploadLocalDataToCloud();
 }
 async function uploadLocalDataToCloud(){
@@ -130,6 +105,7 @@ async function uploadLocalDataToCloud(){
     for(const a of getAdmins()) if(a&&a.id&&c.saveAdmin) await c.saveAdmin(a);
     for(const r of getDeleteRequests()) if(r&&r.id&&c.saveDeleteRequest) await c.saveDeleteRequest(r);
     for(const s of getShifts()) if(s&&s.id&&c.saveShift) await c.saveShift(s);
+    for(const n of getNotices()) if(n&&n.id&&c.saveNotice) await c.saveNotice(n);
   }catch(e){console.warn('Local upload skipped',e)}
 }
 async function cloudSave(kind,data){
@@ -141,6 +117,7 @@ async function cloudSave(kind,data){
     if(kind==='admin'&&c.saveAdmin)await c.saveAdmin(data);
     if(kind==='deleteRequest'&&c.saveDeleteRequest)await c.saveDeleteRequest(data);
     if(kind==='shift'&&c.saveShift)await c.saveShift(data);
+    if(kind==='notice'&&c.saveNotice)await c.saveNotice(data);
   }catch(e){console.error('Cloud save error',e);alert('クラウド保存に失敗しました。通信状態またはFirestoreルールを確認してください。');}
 }
 async function cloudDelete(kind,id){
@@ -150,16 +127,17 @@ async function cloudDelete(kind,id){
     if(kind==='driver'&&c.deleteDriver)await c.deleteDriver(String(id));
     if(kind==='admin'&&c.deleteAdmin)await c.deleteAdmin(String(id));
     if(kind==='shift'&&c.deleteShift)await c.deleteShift(String(id));
+    if(kind==='notice'&&c.deleteNotice)await c.deleteNotice(String(id));
   }catch(e){console.error('Cloud delete error',e);alert('クラウド削除に失敗しました。通信状態またはFirestoreルールを確認してください。');}
 }
 
 function bindEvents(){bind('loginBtn','click',login);bind('gpsBtn','click',getGPS);bind('submitRollcallBtn','click',submitRollcall);bind('driverHomeBtn','click',()=>showDriverPanel('home'));bind('driverRollcallBtn','click',()=>showDriverPanel('rollcall'));bind('driverShiftBtn','click',()=>showDriverPanel('shift'));bind('driverHistoryBtn','click',()=>showDriverPanel('history'));bind('homeStartRollcallBtn','click',()=>showDriverPanel('rollcall'));bind('driverShiftMonth','change',()=>{selectedDriverShiftMonth=$('driverShiftMonth')?.value||monthKey();renderDriverMonthlyShift();});bind('driverPrevShiftMonthBtn','click',()=>changeDriverShiftMonth(-1));bind('driverNextShiftMonthBtn','click',()=>changeDriverShiftMonth(1));bind('driverCurrentShiftMonthBtn','click',()=>{selectedDriverShiftMonth=monthKey();if($('driverShiftMonth'))$('driverShiftMonth').value=selectedDriverShiftMonth;renderDriverMonthlyShift();});bind('myHistoryFilter','change',renderMyHistory);bind('myHistoryStart','change',renderMyHistory);bind('myHistoryEnd','change',renderMyHistory);bind('saveCommentBtn','click',saveAdminComment);bind('closeCommentBtn','click',closeCommentPanel);bind('recordsBody','click',handleRecordClick);bind('markCommentReadBtn','click',markCurrentDriverCommentsRead);bind('driverLogoutBtn','click',()=>location.reload());bind('adminLogoutBtn','click',()=>location.reload());bind('exportCsvBtn','click',exportCSV);bind('printPdfBtn','click',()=>{showAdminTab('records');setTimeout(()=>window.print(),200)});bind('backupBtn','click',backupData);bind('restoreBtn','click',()=>$('restoreInput')?.click());bind('restoreInput','change',restoreData);bind('clearRecordsBtn','click',clearRecords);bind('notifyBtn','click',enableNotification);bind('addDriverBtn','click',addDriver);bind('addAdminBtn','click',addAdmin);bind('photoInput','change',previewPhoto);
-bind('removePhotoBtn','click',removePhoto);bind('shiftMonth','change',()=>{selectedShiftMonth=$('shiftMonth')?.value||monthKey();renderMonthlyShift();});bind('prevShiftMonthBtn','click',()=>changeShiftMonth(-1));bind('nextShiftMonthBtn','click',()=>changeShiftMonth(1));bind('currentShiftMonthBtn','click',()=>{selectedShiftMonth=monthKey();if($('shiftMonth'))$('shiftMonth').value=selectedShiftMonth;renderMonthlyShift();});bind('copyPrevMonthBtn','click',copyPreviousMonth);$('monthlyShiftBody')?.addEventListener('change',handleMonthlyShiftChange);document.querySelectorAll('.admin-nav button[data-tab]').forEach(b=>b.onclick=()=>showAdminTab(b.dataset.tab));$('driversBody')?.addEventListener('click',e=>{if(e.target.dataset.deleteDriver!==undefined)deleteDriver(+e.target.dataset.deleteDriver)});$('adminsBody')?.addEventListener('click',e=>{if(e.target.dataset.deleteAdmin!==undefined)deleteAdmin(+e.target.dataset.deleteAdmin)});$('deleteRequestsBody')?.addEventListener('click',handleDeleteRequestAdminClick);document.addEventListener('click',handleGlobalActionClick);}
+bind('removePhotoBtn','click',removePhoto);bind('sendNoticeBtn','click',sendAdminNotice);bind('adminNoticesList','click',handleAdminNoticeClick);bind('driverNoticesList','click',handleDriverNoticeClick);bind('shiftMonth','change',()=>{selectedShiftMonth=$('shiftMonth')?.value||monthKey();renderMonthlyShift();});bind('prevShiftMonthBtn','click',()=>changeShiftMonth(-1));bind('nextShiftMonthBtn','click',()=>changeShiftMonth(1));bind('currentShiftMonthBtn','click',()=>{selectedShiftMonth=monthKey();if($('shiftMonth'))$('shiftMonth').value=selectedShiftMonth;renderMonthlyShift();});bind('copyPrevMonthBtn','click',copyPreviousMonth);$('monthlyShiftBody')?.addEventListener('change',handleMonthlyShiftChange);document.querySelectorAll('.admin-nav button[data-tab]').forEach(b=>b.onclick=()=>showAdminTab(b.dataset.tab));$('driversBody')?.addEventListener('click',e=>{if(e.target.dataset.deleteDriver!==undefined)deleteDriver(+e.target.dataset.deleteDriver)});$('adminsBody')?.addEventListener('click',e=>{if(e.target.dataset.deleteAdmin!==undefined)deleteAdmin(+e.target.dataset.deleteAdmin)});$('deleteRequestsBody')?.addEventListener('click',handleDeleteRequestAdminClick);document.addEventListener('click',handleGlobalActionClick);}
 function bind(id,ev,fn){const el=$(id);if(el)el.addEventListener(ev,fn)}
 function renderCheckList(){const box=$('checkList');if(!box)return;box.innerHTML=CHECK_ITEMS.map(([id,l])=>`<div class="check"><label><input type="checkbox" id="${id}">${l}</label></div>`).join('')}
 function enhanceSearchUI(){const tab=$('recordsTab');if(!tab||$('startDateSearch'))return;const grid=tab.querySelector('.grid.three');if(!grid)return;grid.innerHTML=`<div><label>ドライバー名</label><select id="driverSelectSearch"><option value="">全員</option></select></div><div><label>開始日</label><input id="startDateSearch" type="date"></div><div><label>終了日</label><input id="endDateSearch" type="date"></div><div><label>点呼区分</label><select id="typeSearch"><option value="">全部</option><option>乗務前点呼</option><option>乗務後点呼</option><option>中間点呼</option></select></div><div><label>判定</label><select id="statusSearch"><option value="">全部</option><option value="ok">OK</option><option value="need">要確認</option></select></div><div><label>担当コース</label><select id="courseSearch"><option value="">全部</option><option>Amazon</option><option>ヤマト</option><option>佐川</option><option>スポット便</option><option>その他</option></select></div><div><label>フリー検索</label><input id="driverSearch" placeholder="名前・車両・備考"></div><div><label>日付検索</label><input id="dateSearch" type="date"></div><div><label>簡易表示</label><select id="recordFilter"><option value="all">全期間</option><option value="today">今日のみ</option><option value="need">要確認のみ</option><option value="month">今月のみ</option></select></div>`;['driverSelectSearch','startDateSearch','endDateSearch','typeSearch','statusSearch','courseSearch','driverSearch','dateSearch','recordFilter'].forEach(id=>{bind(id,'change',renderRecords);bind(id,'input',renderRecords)});renderDriverOptions()}
 function renderDriverOptions(){const s=$('driverSelectSearch');if(!s)return;const cur=s.value;const names=[...new Set(getDrivers().map(d=>d.name).filter(Boolean))];s.innerHTML='<option value="">全員</option>'+names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');s.value=cur}
-function login(){const type=$('loginType').value,name=$('loginName').value.trim(),pass=$('loginPassword').value.trim();if(!name||!pass){alert('名前とパスワードを入力してください');return}if(type==='admin'){const extra=getAdmins().some(a=>String(a.name).trim()===name&&String(a.pass).trim()===pass);if((name===ADMIN_ID&&pass===ADMIN_PASS)||extra){$('loginView').classList.add('hidden');$('adminView').classList.remove('hidden');showAdminTab('dashboard');return}alert('管理者IDまたはパスワードが違います');return}currentUser=name;if($('currentDriver'))$('currentDriver').textContent=`${name} さん、お疲れさまです`;const d=getDrivers().find(x=>x.name===name);if(d&&d.vehicle&&$('vehicleNo'))$('vehicleNo').value=d.vehicle;$('loginView').classList.add('hidden');$('driverView').classList.remove('hidden');showDriverPanel('home');renderDriverHome();renderDriverComments();renderMyHistory();renderDriverMonthlyShift()}
+function login(){const type=$('loginType').value,name=$('loginName').value.trim(),pass=$('loginPassword').value.trim();if(!name||!pass){alert('名前とパスワードを入力してください');return}if(type==='admin'){const extra=getAdmins().some(a=>String(a.name).trim()===name&&String(a.pass).trim()===pass);if((name===ADMIN_ID&&pass===ADMIN_PASS)||extra){$('loginView').classList.add('hidden');$('adminView').classList.remove('hidden');showAdminTab('dashboard');return}alert('管理者IDまたはパスワードが違います');return}currentUser=name;if($('currentDriver'))$('currentDriver').textContent=`${name} さん、お疲れさまです`;const d=getDrivers().find(x=>x.name===name);if(d&&d.vehicle&&$('vehicleNo'))$('vehicleNo').value=d.vehicle;$('loginView').classList.add('hidden');$('driverView').classList.remove('hidden');showDriverPanel('home');renderDriverHome();renderDriverComments();renderMyHistory();renderDriverMonthlyShift();renderDriverNotices()}
 
 function showDriverPanel(panel){
   const map={home:'driverHomePanel',rollcall:'driverRollcallPanel',shift:'driverShiftPanel',history:'driverHistoryPanel'};
@@ -271,16 +249,16 @@ function resizePhotoFile(file){
 }
 function detectCourse(){const t=(($('deliveryNote')?.value||'')+' '+($('remarks')?.value||''));if(t.includes('Amazon'))return'Amazon';if(t.includes('ヤマト'))return'ヤマト';if(t.includes('佐川'))return'佐川';if(t.includes('スポット'))return'スポット便';return''}
 async function submitRollcall(){const selectedType=$('rollcallType')?.value||'';const duplicate=currentDriverRecords().find(r=>r.isoDate===isoDate()&&r.type===selectedType);if(duplicate){alert(`本日の${selectedType}は既に送信されています。自分の履歴から内容確認または削除申請をしてください。`);showDriverPanel('history');renderMyHistory();return}const checks={};CHECK_ITEMS.forEach(([id])=>checks[id]=!!$(id)?.checked);const allOk=CHECK_ITEMS.every(([id])=>checks[id]);if(!allOk&&!confirm('未チェック項目があります。要確認として送信しますか？'))return;const save=async photo=>{const rec={id:String(Date.now()),ok:allOk,time:nowText(),date:todayKey(),isoDate:isoDate(),month:monthKey(),driver:currentUser,name:currentUser,type:$('rollcallType')?.value||'',method:$('rollcallMethod')?.value||'',vehicleNo:$('vehicleNo')?.value.trim()||'',odometer:$('odometer')?.value.trim()||'',alcoholValue:$('alcoholValue')?.value.trim()||'',alcohol:$('alcoholValue')?.value.trim()||'',sleepHours:$('sleepHours')?.value.trim()||'',health:checks.healthGood?'良好':'要確認',instruction:$('instruction')?.value.trim()||'',deliveryNote:$('deliveryNote')?.value.trim()||'',course:detectCourse(),checks,gps:gpsData,photo:photo||'',remarks:$('remarks')?.value.trim()||'',createdAt:nowText()};const arr=getRecords();arr.unshift(rec);try{setLocal(LS_RECORDS,arr)}catch(e){alert('写真データが大きすぎて保存できません。添付写真を削除するか、別の小さい写真で送信してください。');return}await cloudSave('record',rec);alert(window.BELLE_CLOUD&&window.BELLE_CLOUD.enabled?'点呼を送信しました（クラウド同期済み）':'点呼を保存しました（ローカル保存）');removePhoto(true);renderDriverHome();renderMyHistory();showDriverPanel('home');};const f=$('photoInput')?.files?.[0];try{const photo=f?await resizePhotoFile(f):'';await save(photo)}catch(e){alert(e.message||'写真の処理に失敗しました。添付写真を削除して再送信してください。')}}
-function showAdminTab(tab){document.querySelectorAll('.admin-tab').forEach(e=>e.classList.add('hidden'));$(`${tab}Tab`)?.classList.remove('hidden');if(tab==='dashboard')updateDashboard();if(tab==='records'){enhanceSearchUI();renderRecords()}if(tab==='drivers')renderDrivers();if(tab==='shifts'){initShiftTab();renderMonthlyShift()}if(tab==='admins')renderAdmins();if(tab==='deleteRequests')renderDeleteRequests()}
+function showAdminTab(tab){document.querySelectorAll('.admin-tab').forEach(e=>e.classList.add('hidden'));$(`${tab}Tab`)?.classList.remove('hidden');if(tab==='dashboard')updateDashboard();if(tab==='records'){enhanceSearchUI();renderRecords()}if(tab==='drivers')renderDrivers();if(tab==='shifts'){initShiftTab();renderMonthlyShift()}if(tab==='admins')renderAdmins();if(tab==='deleteRequests')renderDeleteRequests();if(tab==='notices'){renderAdminNoticeDriverOptions();renderAdminNotices()}}
 function updateDashboard(){const r=getRecords(),d=getDrivers(),s=getShifts();if($('statToday'))$('statToday').textContent=r.filter(x=>x.date===todayKey()).length;if($('statNeedCheck'))$('statNeedCheck').textContent=r.filter(x=>!x.ok).length;if($('statDrivers'))$('statDrivers').textContent=d.length;if($('statMonth'))$('statMonth').textContent=r.filter(x=>x.month===monthKey()).length;const today=isoDate();const scheduledNames=[...new Set(s.filter(x=>x.date===today&&x.status==='出勤'&&x.driverName).map(x=>x.driverName))];const names=new Set(r.filter(x=>x.isoDate===today||x.date===todayKey()).map(x=>x.driver||x.name));const miss=scheduledNames.filter(name=>!names.has(name));const unregistered=d.filter(x=>!scheduledNames.includes(x.name)).map(x=>x.name);if($('missingToday'))$('missingToday').innerHTML=miss.length?`<strong class="status-ng">未点呼：${miss.map(esc).join('、')}</strong>${unregistered.length?`<br><span class="small">シフト未登録：${unregistered.map(esc).join('、')}</span>`:''}`:`未点呼者はいません${unregistered.length?`<br><span class="small">シフト未登録：${unregistered.map(esc).join('、')}</span>`:''}`;drawChart()}
 function drawChart(){const c=$('summaryChart');if(!c)return;const ctx=c.getContext('2d'),r=getRecords();ctx.clearRect(0,0,c.width,c.height);const vals=[r.filter(x=>x.date===todayKey()).length,r.filter(x=>x.month===monthKey()).length,r.filter(x=>!x.ok).length,getDrivers().length],labs=['今日','今月','要確認','登録'],max=Math.max(...vals,1);ctx.fillStyle='#071f3d';ctx.font='16px sans-serif';labs.forEach((l,i)=>{const h=vals[i]/max*160,x=60+i*120;ctx.fillRect(x,210-h,70,h);ctx.fillText(l,x,235);ctx.fillText(vals[i],x+24,200-h)})}
 function filteredRecords(){let r=getRecords();const filter=$('recordFilter')?.value||'all',free=$('driverSearch')?.value.trim()||'',oldDate=$('dateSearch')?.value||'',driver=$('driverSelectSearch')?.value||'',start=$('startDateSearch')?.value||'',end=$('endDateSearch')?.value||'',type=$('typeSearch')?.value||'',status=$('statusSearch')?.value||'',course=$('courseSearch')?.value||'';if(filter==='today')r=r.filter(x=>x.date===todayKey());if(filter==='need')r=r.filter(x=>!x.ok);if(filter==='month')r=r.filter(x=>x.month===monthKey());if(driver)r=r.filter(x=>(x.driver||x.name||'')===driver);if(start)r=r.filter(x=>(x.isoDate||'')>=start);if(end)r=r.filter(x=>(x.isoDate||'')<=end);if(type)r=r.filter(x=>x.type===type);if(status==='ok')r=r.filter(x=>!!x.ok);if(status==='need')r=r.filter(x=>!x.ok);if(course)r=r.filter(x=>(x.course||x.deliveryNote||x.remarks||'').includes(course));if(free)r=r.filter(x=>[x.driver,x.name,x.vehicleNo,x.remarks,x.deliveryNote,x.instruction,x.course].some(v=>String(v||'').includes(free)));if(oldDate)r=r.filter(x=>x.isoDate===oldDate);return sortByNewest(r)}
 function renderRecords(){const body=$('recordsBody');if(!body)return;const r=filteredRecords();if(!r.length){body.innerHTML='<tr><td colspan="9">履歴はありません</td></tr>';return}body.innerHTML=r.map(x=>{const checks=CHECK_ITEMS.map(([id,l])=>`${x.checks?.[id]?'✅':'❌'}${esc(l)}`).join('<br>');const gps=x.gps?`<a class="maplink" target="_blank" href="https://www.google.com/maps?q=${x.gps.lat},${x.gps.lng}">地図</a>`:'';return `<tr><td class="${x.ok?'status-ok':'status-ng'}">${x.ok?'OK':'要確認'}</td><td>${esc(x.time)}</td><td>${esc(x.type)}<br>${esc(x.course||'')}</td><td>${esc(x.driver||x.name)}</td><td>${esc(x.vehicleNo)}<br>${esc(x.odometer)}</td><td>${checks}<br>ALC:${esc(x.alcoholValue||x.alcohol)}<br>睡眠:${esc(x.sleepHours)}</td><td>${gps}</td><td>${x.photo?`<img class="photo" src="${x.photo}">`:''}</td><td>${esc(x.deliveryNote)}<br>${esc(x.remarks)}<br>${x.adminComment?`<div class="comment-status ${x.commentRead?'read':'unread'}">💬 ${x.commentRead?'既読':'未読'}：${esc(x.adminComment)}</div>`:'コメントなし'}<br><button class="secondary" data-comment-id="${esc(x.id)}">コメント</button></td></tr>`}).join('')}
 async function addDriver(){const name=$('newDriverName').value.trim();if(!name){alert('ドライバー名を入力してください');return}const d={id:String(Date.now()),name,tel:$('newDriverTel').value.trim(),license:$('newDriverLicense').value,vehicle:$('newDriverVehicle').value.trim(),memo:$('newDriverMemo').value.trim(),created:nowText(),createdAt:nowText()};const a=getDrivers().filter(x=>x.id!==d.id);a.unshift(d);setLocal(LS_DRIVERS,a);await cloudSave('driver',d);['newDriverName','newDriverTel','newDriverLicense','newDriverVehicle','newDriverMemo'].forEach(id=>{if($(id))$(id).value=''});renderDrivers();renderDriverOptions();updateDashboard()}
-function renderDrivers(){const body=$('driversBody');if(!body)return;const d=sortByNewest(getDrivers());if(!d.length){body.innerHTML='<tr><td colspan="7">登録ドライバーはありません</td></tr>';return}body.innerHTML=d.map((x,i)=>`<tr><td>${esc(x.name)}</td><td>${esc(x.tel)}</td><td>${esc(x.license)}</td><td>${esc(x.vehicle)}</td><td>${esc(x.memo)}</td><td>${esc(x.created)}</td><td><button class="danger" data-delete-driver="${i}">削除</button></td></tr>`).join('')}
+function renderDrivers(){const body=$('driversBody');if(!body)return;const d=getDrivers();if(!d.length){body.innerHTML='<tr><td colspan="7">登録ドライバーはありません</td></tr>';return}body.innerHTML=d.map((x,i)=>`<tr><td>${esc(x.name)}</td><td>${esc(x.tel)}</td><td>${esc(x.license)}</td><td>${esc(x.vehicle)}</td><td>${esc(x.memo)}</td><td>${esc(x.created)}</td><td><button class="danger" data-delete-driver="${i}">削除</button></td></tr>`).join('')}
 async function deleteDriver(i){if(!confirm('このドライバーを削除しますか？'))return;const a=getDrivers();const d=a[i];a.splice(i,1);setLocal(LS_DRIVERS,a);if(d&&d.id)await cloudDelete('driver',d.id);renderDrivers();renderDriverOptions();updateDashboard()}
 async function addAdmin(){const name=$('newAdminId')?.value.trim()||'',pass=$('newAdminPass')?.value.trim()||'';if(!name||!pass){alert('管理者IDとパスワードを入力してください');return}const admin={id:name,name,pass,created:nowText(),createdAt:nowText()};const a=getAdmins().filter(x=>x.name!==name);a.push(admin);setLocal(LS_ADMINS,a);await cloudSave('admin',admin);if($('newAdminId'))$('newAdminId').value='';if($('newAdminPass'))$('newAdminPass').value='';renderAdmins()}
-function renderAdmins(){const body=$('adminsBody');if(!body)return;const a=[{id:'admin',name:'admin',created:'初期管理者'},...sortByNewest(getAdmins())];body.innerHTML=a.map((x,i)=>`<tr><td>${esc(x.name)}</td><td>${esc(x.created)}</td><td>${x.id==='admin'?'削除不可':`<button class="danger" data-delete-admin="${i-1}">削除</button>`}</td></tr>`).join('')}
+function renderAdmins(){const body=$('adminsBody');if(!body)return;const a=[{id:'admin',name:'admin',created:'初期管理者'},...getAdmins()];body.innerHTML=a.map((x,i)=>`<tr><td>${esc(x.name)}</td><td>${esc(x.created)}</td><td>${x.id==='admin'?'削除不可':`<button class="danger" data-delete-admin="${i-1}">削除</button>`}</td></tr>`).join('')}
 async function deleteAdmin(i){const a=getAdmins();const admin=a[i];a.splice(i,1);setLocal(LS_ADMINS,a);if(admin&&admin.id)await cloudDelete('admin',admin.id);renderAdmins()}
 
 function initShiftTab(){
@@ -469,9 +447,74 @@ async function processDeleteRequest(id,approved){
   renderDeleteRequests();renderRecords();updateDashboard();alert(approved?'削除申請を承認しました':'削除申請を却下しました');
 }
 
+
+function noticeAudienceLabel(n){return n.audienceType==='all'?'全員':(n.targetDriver||'個別')}
+function noticeIsForCurrentDriver(n){return n&&n.deleted!==true&&(n.audienceType==='all'||n.targetDriver===currentUser)}
+function noticeReadBy(n,name){return Array.isArray(n.readBy)&&n.readBy.includes(name)}
+function renderAdminNoticeDriverOptions(){
+  const select=$('noticeTarget');if(!select)return;
+  const current=select.value;
+  const names=[...new Set(getDrivers().map(d=>d.name).filter(Boolean))];
+  select.innerHTML='<option value="__ALL__">全員へ連絡</option>'+names.map(name=>`<option value="${esc(name)}">${esc(name)}さんへ個別連絡</option>`).join('');
+  if([...select.options].some(o=>o.value===current))select.value=current;
+}
+async function sendAdminNotice(){
+  const target=$('noticeTarget')?.value||'__ALL__';
+  const subject=$('noticeSubject')?.value.trim()||'';
+  const message=$('noticeMessage')?.value.trim()||'';
+  const priority=$('noticePriority')?.value||'normal';
+  if(!subject){alert('件名を入力してください');return}
+  if(!message){alert('連絡内容を入力してください');return}
+  const notice={id:String(Date.now()),audienceType:target==='__ALL__'?'all':'individual',targetDriver:target==='__ALL__'?'':target,subject,message,priority,from:'管理者',readBy:[],createdAt:nowText(),isoDate:isoDate(),deleted:false};
+  const notices=getNotices();notices.unshift(notice);setLocal(LS_NOTICES,notices);
+  await cloudSave('notice',notice);
+  $('noticeSubject').value='';$('noticeMessage').value='';$('noticePriority').value='normal';
+  renderAdminNotices();renderDriverNotices();
+  alert(target==='__ALL__'?'全員へ連絡事項を送信しました':'個別の連絡事項を送信しました');
+}
+function renderAdminNotices(){
+  const box=$('adminNoticesList');if(!box)return;
+  const notices=sortByNewest(getNotices().filter(n=>n.deleted!==true));
+  if($('adminNoticeCount'))$('adminNoticeCount').textContent=`送信履歴 ${notices.length}件`;
+  if(!notices.length){box.innerHTML='<p class="small">送信した連絡事項はありません</p>';return}
+  const driverNames=[...new Set(getDrivers().map(d=>d.name).filter(Boolean))];
+  box.innerHTML=notices.map(n=>{
+    const targets=n.audienceType==='all'?driverNames:[n.targetDriver].filter(Boolean);
+    const readBy=Array.isArray(n.readBy)?n.readBy:[];
+    const unread=targets.filter(name=>!readBy.includes(name));
+    const status=n.audienceType==='all'?`確認済み ${readBy.filter(name=>targets.includes(name)).length}/${targets.length}人`:(readBy.includes(n.targetDriver)?'確認済み':'未確認');
+    const detail=n.audienceType==='all'&&targets.length?`<details><summary>確認状況を見る</summary><div class="notice-read-list">${targets.map(name=>`<span>${readBy.includes(name)?'✅':'⬜'} ${esc(name)}</span>`).join('')}</div></details>`:'';
+    return `<article class="notice-card ${n.priority==='urgent'?'urgent':''}"><div class="notice-card-head"><div><strong>${n.priority==='urgent'?'🚨 ':''}${esc(n.subject)}</strong><br><span class="small">宛先：${esc(noticeAudienceLabel(n))}　${esc(n.createdAt)}</span></div><button type="button" class="danger smallbtn" data-delete-notice="${esc(n.id)}">削除</button></div><p class="notice-message">${esc(n.message).replace(/\n/g,'<br>')}</p><div class="small">${esc(status)}${unread.length&&n.audienceType==='all'?` ／ 未確認：${unread.map(esc).join('、')}`:''}</div>${detail}</article>`;
+  }).join('');
+}
+function renderDriverNotices(){
+  const box=$('driverNoticeBox');if(!box||!currentUser)return;
+  const notices=sortByNewest(getNotices().filter(noticeIsForCurrentDriver));
+  const recordComments=sortByNewest(getRecords().filter(r=>(r.driver||r.name)===currentUser&&r.adminComment&&!r.commentRead));
+  if(!notices.length&&!recordComments.length){box.classList.add('hidden');box.innerHTML='';return}
+  box.classList.remove('hidden');
+  const unreadNotices=notices.filter(n=>!noticeReadBy(n,currentUser));
+  let html=`<h3>🔔 管理者からのお知らせ${unreadNotices.length?`（未確認 ${unreadNotices.length}件）`:''}</h3>`;
+  html+=notices.map(n=>{const read=noticeReadBy(n,currentUser);return `<article class="driver-notice-item ${n.priority==='urgent'?'urgent':''}"><div><strong>${n.priority==='urgent'?'🚨 緊急連絡':'📢 '+esc(n.subject)}</strong></div><div class="small">${n.audienceType==='all'?'全員連絡':'個別連絡'} ／ ${esc(n.createdAt)}</div><p>${esc(n.message).replace(/\n/g,'<br>')}</p><button type="button" class="${read?'secondary':'success'} smallbtn" data-read-notice="${esc(n.id)}" ${read?'disabled':''}>${read?'確認済み':'確認しました'}</button></article>`}).join('');
+  if(recordComments.length)html+='<h4>点呼記録へのコメント</h4>'+recordComments.slice(0,5).map(r=>`<div class="driver-notice-item"><strong>${esc(r.time)}</strong><br>${esc(r.adminComment)}</div>`).join('')+'<button id="markCommentReadBtn" type="button" class="success">点呼コメントを確認しました</button>';
+  box.innerHTML=html;bind('markCommentReadBtn','click',markCurrentDriverCommentsRead);
+}
+async function markNoticeRead(id){
+  const notices=getNotices();const notice=notices.find(n=>String(n.id)===String(id));if(!notice||!currentUser)return;
+  const readBy=Array.isArray(notice.readBy)?notice.readBy:[];if(!readBy.includes(currentUser))readBy.push(currentUser);
+  notice.readBy=readBy;notice.lastReadAt=nowText();setLocal(LS_NOTICES,notices);await cloudSave('notice',notice);renderDriverNotices();renderAdminNotices();
+}
+async function deleteNotice(id){
+  const notices=getNotices();const notice=notices.find(n=>String(n.id)===String(id));if(!notice)return;
+  if(!confirm(`「${notice.subject||'連絡事項'}」を削除しますか？`))return;
+  notice.deleted=true;notice.deletedAt=nowText();setLocal(LS_NOTICES,notices);await cloudSave('notice',notice);renderAdminNotices();renderDriverNotices();
+}
+function handleAdminNoticeClick(e){const btn=e.target.closest?.('[data-delete-notice]');if(btn)deleteNotice(btn.dataset.deleteNotice)}
+function handleDriverNoticeClick(e){const btn=e.target.closest?.('[data-read-notice]');if(btn)markNoticeRead(btn.dataset.readNotice)}
+
 function exportCSV(){const rows=[['判定','日時','点呼区分','担当コース','名前','車両番号','メーター','アルコール','睡眠','GPS','備考']];filteredRecords().forEach(x=>rows.push([x.ok?'OK':'要確認',x.time,x.type,x.course||'',x.driver||x.name,x.vehicleNo,x.odometer,x.alcoholValue||x.alcohol,x.sleepHours,x.gps?`${x.gps.lat},${x.gps.lng}`:'',`${x.deliveryNote||''} ${x.remarks||''}`]));const csv=rows.map(row=>row.map(v=>`"${String(v).replaceAll('"','""')}"`).join(',')).join('\r\n');const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='belle-house-tenko-search-result.csv';a.click()}
-function backupData(){const data={records:getRecords(),drivers:getDrivers(),admins:getAdmins(),shifts:getShifts(),deleteRequests:getDeleteRequests(),created:nowText()};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='belle-house-tenko-backup.json';a.click()}
-function restoreData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const data=JSON.parse(r.result);if(data.records)setLocal(LS_RECORDS,data.records);if(data.drivers)setLocal(LS_DRIVERS,data.drivers);if(data.admins)setLocal(LS_ADMINS,data.admins);if(data.shifts)setLocal(LS_SHIFTS,data.shifts);if(data.deleteRequests)setLocal(LS_DELETE_REQUESTS,data.deleteRequests);alert('バックアップを読み込みました');location.reload()}catch{alert('読み込みに失敗しました')}};r.readAsText(f)}
+function backupData(){const data={records:getRecords(),drivers:getDrivers(),admins:getAdmins(),shifts:getShifts(),deleteRequests:getDeleteRequests(),notices:getNotices(),created:nowText()};const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='belle-house-tenko-backup.json';a.click()}
+function restoreData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const data=JSON.parse(r.result);if(data.records)setLocal(LS_RECORDS,data.records);if(data.drivers)setLocal(LS_DRIVERS,data.drivers);if(data.admins)setLocal(LS_ADMINS,data.admins);if(data.shifts)setLocal(LS_SHIFTS,data.shifts);if(data.deleteRequests)setLocal(LS_DELETE_REQUESTS,data.deleteRequests);if(data.notices)setLocal(LS_NOTICES,data.notices);alert('バックアップを読み込みました');location.reload()}catch{alert('読み込みに失敗しました')}};r.readAsText(f)}
 async function enableNotification(){if(!('Notification'in window)){alert('この端末は通知非対応です');return}const p=await Notification.requestPermission();if(p!=='granted'){alert('通知が許可されませんでした');return}new Notification('BELLE HOUSE',{body:'点呼忘れ通知を有効にしました'})}
 async function clearRecords(){if(!confirm('点呼履歴をすべて削除しますか？'))return;localStorage.removeItem(LS_RECORDS);if(window.BELLE_CLOUD&&window.BELLE_CLOUD.enabled&&window.BELLE_CLOUD.clearRecords){try{await window.BELLE_CLOUD.clearRecords()}catch(e){console.error(e);alert('クラウド側の削除に失敗しました。Firestoreルールを確認してください。')}}updateDashboard();renderRecords()}
 setInterval(()=>{if(!cloudStarted)startCloudSync();updateSyncStatus();},3000);
@@ -517,21 +560,7 @@ async function saveAdminComment(){
   updateDashboard();
 }
 
-function renderDriverComments(){
-  const box = $('driverNoticeBox');
-  if(!box) return;
-  const records = sortByNewest(getRecords().filter(r => (r.driver || r.name) === currentUser && r.adminComment && !r.commentRead));
-  if(!records.length){
-    box.classList.add('hidden');
-    box.innerHTML = '';
-    return;
-  }
-  box.classList.remove('hidden');
-  box.innerHTML = `<h3>🔔 管理者からのお知らせ</h3>` + records.slice(0,5).map(r =>
-    `<div class="driver-notice-item"><strong>${esc(r.time)}</strong><br>${esc(r.adminComment)}</div>`
-  ).join('') + `<button id="markCommentReadBtn" type="button" class="success">確認しました</button>`;
-  bind('markCommentReadBtn','click',markCurrentDriverCommentsRead);
-}
+function renderDriverComments(){renderDriverNotices()}
 
 async function markCurrentDriverCommentsRead(){
   const records = getRecords();
